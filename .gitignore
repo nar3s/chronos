@@ -1,0 +1,53 @@
+# dependencies
+node_modules/
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+.metro-health-check*
+
+# TypeScript / logs
+*.tsbuildinfo
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# env / secrets
+.env
+.env.*
+!.env.example
+.env*.local
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# local tooling / private workspace files
+.cursor/
+.claude/
+.vscode/
+.context/
+.learnings/
+
+# Android generated / local-only
+android/.gradle/
+android/.idea/
+android/.kotlin/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+
+# Expo module generated output
+modules/*/android/build/
+
+# optional private reference assets
+previewscreens/
+
+# patch / OS leftovers
+*.orig.*
+.DS_Store
+Thumbs.db

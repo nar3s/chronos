@@ -1,0 +1,4 @@
+<resources>
+    <string name="accessibility_service_description">Chronos App Blocker to prevent distraction when daily logs are not completed.</string>
+    <string name="accessibility_service_label">Chronos App Blocker</string>
+</resources>
