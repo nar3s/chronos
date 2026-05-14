@@ -1,4 +1,4 @@
-# NareshOS
+# Chronos
 
 Offline-first personal daily OS built with Expo Router, React Native, TypeScript, and Zustand.
 
