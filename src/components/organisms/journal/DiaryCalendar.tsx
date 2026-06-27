@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { useDiaryStore } from '@/src/store/diaryStore';
-import { useBookmarkStore } from '@/src/store/bookmarkStore';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { getToday } from '@/src/utils/dates';
 import { colors } from '@/src/theme/colors';
-import type { MoodType } from '@/src/domain/types/diary';
+import { spacing } from '@/src/theme/spacing';
+import type { DiaryEntry, DoneTask, MoodType } from '@/src/domain/types/diary';
+import type { Bookmark } from '@/src/domain/types/bookmark';
 
 const WEEK_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 
@@ -17,6 +19,9 @@ const MOOD_DOT_COLORS: Record<MoodType, string> = {
 
 interface Props {
   selectedDate: string;
+  entries: DiaryEntry[];
+  tasks: DoneTask[];
+  bookmarks: Bookmark[];
   onSelectDate: (date: string) => void;
 }
 
@@ -29,32 +34,41 @@ function getMonthDays(year: number, month: number): string[] {
   });
 }
 
-export function DiaryCalendar({ selectedDate, onSelectDate }: Props) {
+export function DiaryCalendar({
+  selectedDate,
+  entries,
+  tasks,
+  bookmarks,
+  onSelectDate,
+}: Props) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth());
 
-  const entries = useDiaryStore((s) => s.entries);
-  const tasks = useDiaryStore((s) => s.tasks);
-  const bookmarks = useBookmarkStore((s) => s.bookmarks);
-  const getBookmarksByDate = useBookmarkStore((s) => s.getBookmarksByDate);
   const today = getToday();
-
-  const isCurrentMonth = viewYear === now.getFullYear() && viewMonth === now.getMonth();
 
   const monthLabel = new Date(viewYear, viewMonth, 1).toLocaleDateString('en-US', {
     month: 'long',
     year: 'numeric',
   });
 
-  const { entryMoodMap, datesWithContent } = useMemo(() => {
+  const { entryMoodMap, datesWithContent, bookmarkedDates } = useMemo(() => {
     const moodMap = new Map<string, MoodType | null>();
-    entries.forEach((e) => moodMap.set(e.date, e.mood));
+    entries.forEach((entry) => moodMap.set(entry.date, entry.mood));
+
     const content = new Set<string>();
-    entries.forEach((e) => content.add(e.date));
-    tasks.forEach((t) => content.add(t.date));
-    return { entryMoodMap: moodMap, datesWithContent: content };
-  }, [entries, tasks]);
+    entries.forEach((entry) => content.add(entry.date));
+    tasks.forEach((task) => content.add(task.date));
+
+    const marked = new Set<string>();
+    bookmarks.forEach((bookmark) => marked.add(bookmark.date));
+
+    return {
+      entryMoodMap: moodMap,
+      datesWithContent: content,
+      bookmarkedDates: marked,
+    };
+  }, [entries, tasks, bookmarks]);
 
   const { days, startOffset } = useMemo(() => {
     const monthDays = getMonthDays(viewYear, viewMonth);
@@ -92,33 +106,39 @@ export function DiaryCalendar({ selectedDate, onSelectDate }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#1a1f2e', '#15171f', '#101218']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
       <View style={styles.monthRow}>
         <TouchableOpacity onPress={goPrev} style={styles.arrow} activeOpacity={0.6}>
-          <Text style={styles.arrowText}>‹</Text>
+          <Ionicons name="chevron-back" size={16} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.monthLabel}>{monthLabel}</Text>
-        <TouchableOpacity
-          onPress={goNext}
-          style={styles.arrow}
-          activeOpacity={0.6}
-        >
-          <Text style={styles.arrowText}>›</Text>
+        <View style={styles.monthCenter}>
+          <Text style={styles.calendarLabel}>Calendar</Text>
+          <Text style={styles.monthLabel}>{monthLabel}</Text>
+        </View>
+        <TouchableOpacity onPress={goNext} style={styles.arrow} activeOpacity={0.6}>
+          <Ionicons name="chevron-forward" size={16} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
       <View style={styles.headerRow}>
-        {WEEK_HEADERS.map((h) => (
-          <View key={h} style={styles.headerCell}>
-            <Text style={styles.headerText}>{h}</Text>
+        {WEEK_HEADERS.map((header) => (
+          <View key={header} style={styles.headerCell}>
+            <Text style={styles.headerText}>{header}</Text>
           </View>
         ))}
       </View>
 
-      {rows.map((row, ri) => (
-        <View key={ri} style={styles.row}>
-          {row.map((date, ci) => {
-            if (!date) return <View key={`e-${ri}-${ci}`} style={styles.cell} />;
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map((date, cellIndex) => {
+            if (!date) {
+              return <View key={`e-${rowIndex}-${cellIndex}`} style={styles.cell} />;
+            }
 
             const dayNum = parseInt(date.slice(-2), 10);
             const hasContent = datesWithContent.has(date);
@@ -127,8 +147,7 @@ export function DiaryCalendar({ selectedDate, onSelectDate }: Props) {
             const isToday = date === today;
             const isSelected = date === selectedDate;
             const isFuture = date > today;
-
-            const isBookmarked = getBookmarksByDate(date).length > 0;
+            const isBookmarked = bookmarkedDates.has(date);
 
             return (
               <TouchableOpacity
@@ -154,7 +173,14 @@ export function DiaryCalendar({ selectedDate, onSelectDate }: Props) {
                   >
                     {dayNum}
                   </Text>
-                  {isBookmarked && <Text style={styles.bookmarkStar}>★</Text>}
+                  {isBookmarked ? (
+                    <Ionicons
+                      name="star"
+                      size={10}
+                      color={colors.warning}
+                      style={styles.bookmarkStar}
+                    />
+                  ) : null}
                 </View>
                 {hasContent ? (
                   <View style={[styles.dot, { backgroundColor: dotColor }]} />
@@ -166,45 +192,54 @@ export function DiaryCalendar({ selectedDate, onSelectDate }: Props) {
           })}
         </View>
       ))}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.card,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 12,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: `${colors.accent}1A`,
   },
   monthRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
+  },
+  monthCenter: {
+    alignItems: 'center',
+  },
+  calendarLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
   monthLabel: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.textPrimary,
+    letterSpacing: -0.2,
   },
   arrow: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.cardElevated,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.04)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  arrowText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: -2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   headerRow: {
     flexDirection: 'row',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   headerCell: {
     flex: 1,
@@ -212,23 +247,24 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
+    letterSpacing: 0.4,
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 2,
+    marginBottom: 1,
   },
   cell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 2,
+    paddingVertical: 1,
   },
   dayNum: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -238,10 +274,12 @@ const styles = StyleSheet.create({
   },
   selectedFill: {
     backgroundColor: colors.accent,
+    borderWidth: 1,
+    borderColor: `${colors.accent}99`,
   },
   dayText: {
     fontSize: 13,
-    fontWeight: '400',
+    fontWeight: '500',
     color: colors.textPrimary,
   },
   todayText: {
@@ -250,7 +288,7 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   futureText: {
     color: colors.textMuted,
@@ -271,7 +309,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -2,
     right: -4,
-    fontSize: 10,
-    color: colors.warning,
   },
 });

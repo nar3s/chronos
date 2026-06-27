@@ -1,84 +1,117 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
-import { IntentionCard } from '@/src/components/organisms/dashboard/IntentionCard';
-import { MorningBlockCard } from '@/src/components/organisms/dashboard/MorningBlockCard';
-import { TodayFocusCard } from '@/src/components/organisms/dashboard/TodayFocusCard';
-import { QuickStatsRow } from '@/src/components/organisms/dashboard/QuickStatsRow';
-import { ActivityCalendar } from '@/src/components/organisms/dashboard/ActivityCalendar';
-import { PendingLogsBanner } from '@/src/components/organisms/dashboard/PendingLogsBanner';
-import { SectionHeader } from '@/src/components/molecules/SectionHeader';
-import { useDailySnapshot } from '@/src/hooks/useDailySnapshot';
-import { useActivityCalendar } from '@/src/hooks/useActivityCalendar';
-import { useAccessibilityStatus } from '@/src/hooks/useAccessibilityStatus';
-import { useSettingsStore } from '@/src/store/settingsStore';
-import { colors } from '@/src/theme/colors';
+import { SectionHeader } from "@/src/components/molecules/SectionHeader";
+import { ActivityCalendar } from "@/src/components/organisms/dashboard/ActivityCalendar";
+import { QuickStatsRow } from "@/src/components/organisms/dashboard/QuickStatsRow";
+import { TodayFocusCard } from "@/src/components/organisms/dashboard/TodayFocusCard";
+import { TodayHeroCard } from "@/src/components/organisms/dashboard/TodayHeroCard";
+import { ScreenTemplate } from "@/src/components/templates/ScreenTemplate";
+import { useActivityCalendar } from "@/src/hooks/useActivityCalendar";
+import { useDailySnapshot } from "@/src/hooks/useDailySnapshot";
+import { useGymStore } from "@/src/store/gymStore";
+import { useHabitStore } from "@/src/store/habitStore";
+import { useNutritionStore } from "@/src/store/nutritionStore";
+import { useSettingsStore } from "@/src/store/settingsStore";
+import { useSnapshotStore } from "@/src/store/snapshotStore";
+import { useStudyStore } from "@/src/store/studyStore";
+import { colors } from "@/src/theme/colors";
+import { spacing } from "@/src/theme/spacing";
+import { getDateDaysAgo, getToday } from "@/src/utils/dates";
+import { LinearGradient } from "expo-linear-gradient";
+import React from "react";
+import { StyleSheet, Text } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 const STAGGER_BASE = 80;
+const SECTION_GRADIENT = ["#1a1f2e", "#15171f", "#101218"] as const;
 
 export function DashboardScreen() {
   const data = useDailySnapshot();
   const calendar = useActivityCalendar();
-  const { isEnabled: isServiceEnabled, openSettings } = useAccessibilityStatus();
-  const isBlockerEnabled = useSettingsStore((s) => s.blockerConfig.enabled);
+  const userName = useSettingsStore((s) => s.userName);
+  const updateSnapshot = useSnapshotStore((s) => s.updateSnapshot);
+  const habits = useHabitStore((s) => s.habits);
+  const habitLogs = useHabitStore((s) => s.logs);
+  const studySessions = useStudyStore((s) => s.sessions);
+  const sleepLogs = useGymStore((s) => s.sleepLogs);
+  const nutritionLogs = useNutritionStore((s) => s.logs);
+
+  const today = getToday();
+  const yesterday = getDateDaysAgo(1);
+  const habitsDoneToday = habitLogs.filter((log) => log.date === today).length;
+  const habitsDoneYesterday = habitLogs.filter((log) => log.date === yesterday).length;
+  const studyYesterdayMinutes = studySessions
+    .filter((session) => session.date === yesterday)
+    .reduce((sum, session) => sum + session.durationMinutes, 0);
+  const proteinYesterdayGrams =
+    nutritionLogs.find((log) => log.date === yesterday)?.proteinGrams ?? 0;
+  const sleepYesterdayMinutes =
+    sleepLogs.find((log) => log.date === yesterday)?.durationMinutes ?? 0;
 
   return (
     <ScreenTemplate>
       <Animated.View
-        style={styles.headerPad}
         entering={FadeInDown.duration(400).delay(STAGGER_BASE * 0)}
       >
-        <Text style={styles.dateText}>{data.displayDate}</Text>
-        <Text style={styles.greeting}>Good morning, Naresh</Text>
-      </Animated.View>
-
-      <PendingLogsBanner
-        isBlockerEnabled={isBlockerEnabled}
-        isStudyDone={data.todayStudyMinutes > 0}
-        isGymDone={data.isGymDoneToday}
-        isProteinDone={data.todayProteinGrams > 0}
-        isServiceEnabled={isServiceEnabled}
-        onOpenSettings={openSettings}
-      />
-
-      {data.gymStreak >= 3 && (
-        <Animated.View
-          style={styles.microWin}
-          entering={FadeInDown.duration(400).delay(STAGGER_BASE * 1)}
-        >
-          <Text style={styles.microWinText}>
-            🔥 {data.gymStreak}-day gym streak
-          </Text>
-        </Animated.View>
-      )}
-
-      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER_BASE * 2)}>
-        <MorningBlockCard
+        <TodayHeroCard
           snapshot={data.todaySnapshot}
           streak={data.morningStreak}
+          userName={userName}
+          skipData={{
+            todayStudyMinutes: data.todayStudyMinutes,
+            todayProteinGrams: data.todayProteinGrams,
+            isRestDay: data.isRestDay,
+            isGymSkippedToday: data.isGymSkippedToday,
+            isStudySkippedToday: data.isStudySkippedToday,
+            isProteinSkippedToday: data.isProteinSkippedToday,
+            todaySessionCompleted: !!data.todaySession?.completed,
+          }}
+          onUpdateIntention={(intention) =>
+            updateSnapshot(today, { intention })
+          }
+          onToggleSkip={(key, next) => updateSnapshot(today, { [key]: next })}
         />
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER_BASE * 3)}>
-        <IntentionCard />
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(STAGGER_BASE * 1)}
+      >
+        <LinearGradient
+          colors={SECTION_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.sectionCard}
+        >
+          <Text style={styles.fieldLabel}>Today's focus</Text>
+          <TodayFocusCard study={data.studyFocus} gym={data.gymFocus} />
+        </LinearGradient>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER_BASE * 4)}>
-        <SectionHeader title="Today's Focus" />
-        <TodayFocusCard study={data.studyFocus} gym={data.gymFocus} />
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(STAGGER_BASE * 2)}
+      >
+        <LinearGradient
+          colors={SECTION_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.sectionCard}
+        >
+          <Text style={styles.fieldLabel}>Quick stats</Text>
+          <QuickStatsRow
+            nutrition={data.todayNutrition}
+            sleep={data.todaySleepLog}
+            studyMinutes={data.todayStudyMinutes}
+            studyYesterdayMinutes={studyYesterdayMinutes}
+            habitsDoneToday={habitsDoneToday}
+            habitsDoneYesterday={habitsDoneYesterday}
+            totalHabits={habits.length}
+            proteinYesterdayGrams={proteinYesterdayGrams}
+            sleepYesterdayMinutes={sleepYesterdayMinutes}
+          />
+        </LinearGradient>
       </Animated.View>
 
-      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER_BASE * 5)}>
-        <SectionHeader title="Quick Stats" />
-        <QuickStatsRow
-          nutrition={data.todayNutrition}
-          sleep={data.todaySleepLog}
-          studyMinutes={data.todayStudyMinutes}
-        />
-      </Animated.View>
-
-      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER_BASE * 6)}>
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(STAGGER_BASE * 3)}
+      >
         <SectionHeader title="Activity" />
         <ActivityCalendar
           days={calendar.days}
@@ -97,33 +130,19 @@ export function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  headerPad: {
-    paddingTop: 8,
-    marginBottom: 4,
+  sectionCard: {
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: `${colors.accent}1A`,
   },
-  dateText: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    fontWeight: '400',
-    marginBottom: 2,
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    marginBottom: 16,
-  },
-  microWin: {
-    backgroundColor: 'rgba(34,197,94,0.12)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 12,
-  },
-  microWinText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.success,
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: spacing.sm,
   },
 });

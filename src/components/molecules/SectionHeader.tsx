@@ -17,14 +17,13 @@ export function SectionHeader({ title }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm + 2,
+    marginTop: 0,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.2,
   },
 });

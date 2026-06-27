@@ -1,19 +1,18 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BottomSheet } from '@/src/components/molecules/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
-const ITEM_H = 52;
+const ITEM_H = 42;
 const VISIBLE = 5;
 const DRUM_H = ITEM_H * VISIBLE;
 const PAD = ITEM_H * 2; // centers first and last item
@@ -21,7 +20,7 @@ const PAD = ITEM_H * 2; // centers first and last item
 const HOURS = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'));
 
-// ─── Scroll drum ───────────────────────────────────────────────────────────────
+// Scroll drum
 
 interface DrumProps {
   items: string[];
@@ -32,7 +31,7 @@ interface DrumProps {
 function ScrollDrum({ items, initialIndex, onChange }: DrumProps) {
   return (
     <View style={styles.drumWrapper}>
-      {/* Fixed selection band — two lines bracketing the center row */}
+      {/* Fixed selection band around the center row */}
       <View style={styles.selectionBand} pointerEvents="none" />
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -57,7 +56,7 @@ function ScrollDrum({ items, initialIndex, onChange }: DrumProps) {
   );
 }
 
-// ─── TimePickerSheet ───────────────────────────────────────────────────────────
+// TimePickerSheet
 
 interface Props {
   visible: boolean;
@@ -80,8 +79,8 @@ function toDraft(date: Date) {
   const rawMin = date.getMinutes();
   const snappedMin = Math.round(rawMin / 5) * 5 % 60;
   return {
-    hourIndex: (h % 12 || 12) - 1,       // 0–11
-    minuteIndex: snappedMin / 5,           // 0–11
+    hourIndex: (h % 12 || 12) - 1,       // 0-11
+    minuteIndex: snappedMin / 5,           // 0-11
     period: (h >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
   };
 }
@@ -115,11 +114,8 @@ export function TimePickerSheet({ visible, title, value, onCancel, onConfirm }: 
   const preview = toDate(value, hourIndex, minuteIndex, period);
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+    <BottomSheet visible={visible} onClose={onCancel}>
+      <View style={styles.body}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.preview}>{formatTimeDisplay(preview)}</Text>
 
@@ -164,62 +160,43 @@ export function TimePickerSheet({ visible, title, value, onCancel, onConfirm }: 
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15,15,15,0.75)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+  body: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-    borderTopWidth: 1,
-    borderColor: '#242424',
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: '#3A3A3A',
-    marginBottom: spacing.base,
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
     letterSpacing: -0.2,
   },
   preview: {
-    fontSize: 32,
+    fontSize: 26,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
     fontVariant: ['tabular-nums'],
+    letterSpacing: -0.6,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    marginTop: spacing.base,
+    marginTop: spacing.sm,
   },
   drumWrapper: {
-    width: 72,
+    width: 64,
     height: DRUM_H,
     overflow: 'hidden',
-    borderRadius: 14,
-    backgroundColor: '#111111',
+    borderRadius: 12,
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -240,28 +217,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   drumText: {
-    fontSize: 26,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
   },
   colon: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.textMuted,
-    marginTop: -8,
+    marginTop: -6,
   },
   periodColumn: {
-    gap: 8,
-    marginLeft: 4,
+    gap: 6,
+    marginLeft: 6,
   },
   periodBtn: {
-    width: 56,
-    paddingVertical: 12,
-    borderRadius: 12,
+    width: 48,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: '#111111',
+    backgroundColor: colors.cardElevated,
     alignItems: 'center',
   },
   periodBtnActive: {
@@ -269,7 +246,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   periodText: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
     color: colors.textSecondary,
   },
@@ -279,7 +256,7 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
   cancelButton: {
     flex: 1,
@@ -287,7 +264,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cardElevated,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   cancelText: {
@@ -299,7 +276,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: colors.accent,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   confirmText: {

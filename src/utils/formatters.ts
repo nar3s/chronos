@@ -34,9 +34,9 @@ export function pplLabel(type: string): string {
 
 export function pplSubtitle(type: string): string {
   const map: Record<string, string> = {
-    push: 'Chest · Shoulders · Tri',
-    pull: 'Back · Biceps · Rear Delt',
-    legs: 'Quads · Hamstrings · Calves',
+    push: 'Chest / Shoulders / Tri',
+    pull: 'Back / Biceps / Rear Delt',
+    legs: 'Quads / Hamstrings / Calves',
     rest: 'Active recovery',
   };
   return map[type] ?? '';

@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useDiaryStore } from '@/src/store/diaryStore';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -50,7 +51,6 @@ export default function LogDiaryModal() {
   const upsertEntry = useDiaryStore((s) => s.upsertEntry);
   const addTask = useDiaryStore((s) => s.addTask);
 
-  // backward compat: old entries had `text` instead of `highlights`
   const legacyText: string | undefined = (existingEntry as any)?.text;
   const initialHighlights: string[] = existingEntry?.highlights?.length
     ? existingEntry.highlights
@@ -62,7 +62,6 @@ export default function LogDiaryModal() {
   const [highlights, setHighlights] = useState<string[]>(initialHighlights);
   const [highlightInput, setHighlightInput] = useState('');
   const [takeaway, setTakeaway] = useState((existingEntry as any)?.takeaway ?? '');
-
   const [taskTitle, setTaskTitle] = useState('');
   const [taskDesc, setTaskDesc] = useState('');
   const [taskCategory, setTaskCategory] = useState<TaskCategory>('study');
@@ -99,13 +98,20 @@ export default function LogDiaryModal() {
   }
 
   function handleRemovePending(id: string) {
-    setPendingTasks((prev) => prev.filter((t) => t.id !== id));
+    setPendingTasks((prev) => prev.filter((task) => task.id !== id));
   }
 
   function handleSave() {
-    // Auto-flush uncommitted task input so typing title + hitting Save works
     const allTasks: PendingTask[] = taskTitle.trim()
-      ? [...pendingTasks, { id: Date.now().toString(), title: taskTitle.trim(), description: taskDesc.trim(), category: taskCategory }]
+      ? [
+          ...pendingTasks,
+          {
+            id: Date.now().toString(),
+            title: taskTitle.trim(),
+            description: taskDesc.trim(),
+            category: taskCategory,
+          },
+        ]
       : pendingTasks;
 
     if (highlights.length > 0 || takeaway.trim() || mood) {
@@ -117,7 +123,8 @@ export default function LogDiaryModal() {
         mood,
       });
     }
-    for (const task of allTasks) {
+
+    allTasks.forEach((task) => {
       addTask({
         id: `${task.id}-task`,
         date,
@@ -125,11 +132,18 @@ export default function LogDiaryModal() {
         description: task.description || undefined,
         category: task.category,
       });
-    }
+    });
+
     router.back();
   }
 
-  const canSave = !!(highlights.length > 0 || takeaway.trim() || mood || pendingTasks.length > 0 || taskTitle.trim());
+  const canSave = !!(
+    highlights.length > 0 ||
+    takeaway.trim() ||
+    mood ||
+    pendingTasks.length > 0 ||
+    taskTitle.trim()
+  );
 
   return (
     <KeyboardAvoidingView
@@ -141,125 +155,152 @@ export default function LogDiaryModal() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>{isEditing ? 'Edit Entry' : 'Write Entry'}</Text>
-
-        <View style={styles.lockedDate}>
-          <Text style={styles.lockedDateText}>{dateLabel}</Text>
-          <Text style={styles.lockIcon}>🔒</Text>
+        <View style={styles.headerCard}>
+          <Text style={styles.kicker}>JOURNAL ENTRY</Text>
+          <Text style={styles.title}>{isEditing ? 'Edit entry' : 'Write entry'}</Text>
+          <View style={styles.lockedDate}>
+            <Ionicons name="lock-closed-outline" size={15} color={colors.textSecondary} />
+            <Text style={styles.lockedDateText}>{dateLabel}</Text>
+          </View>
         </View>
 
-        {/* Mood */}
-        <Text style={styles.fieldLabel}>How was it?</Text>
-        <View style={styles.moodRow}>
-          {MOODS.map((m) => (
-            <TouchableOpacity
-              key={m.value}
-              style={[
-                styles.moodChip,
-                mood === m.value && { backgroundColor: m.color + '22', borderColor: m.color },
-              ]}
-              onPress={() => setMood(mood === m.value ? null : m.value)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.moodLabel,
-                  mood === m.value && { color: m.color, fontWeight: '700' },
-                ]}
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Mood</Text>
+          <View style={styles.moodRow}>
+            {MOODS.map((item) => {
+              const active = mood === item.value;
+              return (
+                <TouchableOpacity
+                  key={item.value}
+                  style={[
+                    styles.moodChip,
+                    active && {
+                      backgroundColor: `${item.color}22`,
+                      borderColor: item.color,
+                    },
+                  ]}
+                  onPress={() => setMood(active ? null : item.value)}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.moodDot,
+                      { backgroundColor: active ? item.color : colors.textMuted },
+                    ]}
+                  />
+                  <Text
+                    style={[
+                      styles.moodLabel,
+                      active && { color: item.color, fontWeight: '700' },
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Highlights</Text>
+          {highlights.map((highlight, index) => (
+            <View key={`${highlight}-${index}`} style={styles.highlightRow}>
+              <View style={styles.bullet} />
+              <Text style={styles.highlightText}>{highlight}</Text>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => handleRemoveHighlight(index)}
+                hitSlop={8}
               >
-                {m.label}
-              </Text>
-            </TouchableOpacity>
+                <Ionicons name="close" size={14} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
           ))}
-        </View>
-
-        {/* Highlights */}
-        <Text style={styles.fieldLabel}>What happened today?</Text>
-        {highlights.map((h, i) => (
-          <View key={i} style={styles.highlightRow}>
-            <View style={styles.bullet} />
-            <Text style={styles.highlightText}>{h}</Text>
-            <TouchableOpacity onPress={() => handleRemoveHighlight(i)} hitSlop={8}>
-              <Text style={styles.removeBtn}>✕</Text>
+          <View style={styles.addRow}>
+            <TextInput
+              style={[styles.input, styles.addInput]}
+              value={highlightInput}
+              onChangeText={setHighlightInput}
+              placeholder="Add a moment, win or event..."
+              placeholderTextColor={colors.textMuted}
+              onSubmitEditing={handleAddHighlight}
+              returnKeyType="done"
+            />
+            <TouchableOpacity
+              style={[styles.addBtn, !highlightInput.trim() && styles.btnDisabled]}
+              onPress={handleAddHighlight}
+              disabled={!highlightInput.trim()}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={16} color="#fff" />
             </TouchableOpacity>
           </View>
-        ))}
-        <View style={styles.addRow}>
-          <TextInput
-            style={[styles.input, styles.addInput]}
-            value={highlightInput}
-            onChangeText={setHighlightInput}
-            placeholder="Add a moment, win or event..."
-            placeholderTextColor={colors.textMuted}
-            onSubmitEditing={handleAddHighlight}
-            returnKeyType="done"
-          />
-          <TouchableOpacity
-            style={[styles.addBtn, !highlightInput.trim() && styles.btnDisabled]}
-            onPress={handleAddHighlight}
-            disabled={!highlightInput.trim()}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.addBtnText}>Add</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Takeaway */}
-        <Text style={styles.fieldLabel}>Key Takeaway</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={takeaway}
-          onChangeText={setTakeaway}
-          placeholder="What's the one thing you're taking from today?"
-          placeholderTextColor={colors.textMuted}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Key Takeaway</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            value={takeaway}
+            onChangeText={setTakeaway}
+            placeholder="What's the one thing you're taking from today?"
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
 
-        {/* Tasks Done */}
-        <Text style={styles.fieldLabel}>Tasks Done</Text>
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Tasks Done</Text>
+          {existingTasks.length > 0 ? (
+            <View style={styles.existingTasksNote}>
+              <Ionicons name="checkmark-circle-outline" size={15} color={colors.success} />
+              <Text style={styles.existingTasksText}>
+                {existingTasks.length} task{existingTasks.length > 1 ? 's' : ''} already logged
+              </Text>
+            </View>
+          ) : null}
 
-        {existingTasks.length > 0 && (
-          <View style={styles.existingTasksNote}>
-            <Text style={styles.existingTasksText}>
-              {existingTasks.length} task{existingTasks.length > 1 ? 's' : ''} already logged — add more below
-            </Text>
-          </View>
-        )}
-
-        {pendingTasks.map((task) => (
-          <View key={task.id} style={styles.pendingTask}>
-            <View style={styles.pendingTaskLeft}>
-              <View
-                style={[
-                  styles.categoryPill,
-                  { backgroundColor: CATEGORY_COLORS[task.category] + '22' },
-                ]}
-              >
-                <Text style={[styles.categoryPillText, { color: CATEGORY_COLORS[task.category] }]}>
-                  {task.category}
-                </Text>
-              </View>
-              <View style={styles.pendingTaskText}>
+          {pendingTasks.map((task) => (
+            <View key={task.id} style={styles.pendingTask}>
+              <View style={styles.pendingTaskLeft}>
+                <View
+                  style={[
+                    styles.categoryPill,
+                    { backgroundColor: `${CATEGORY_COLORS[task.category]}22` },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.categoryPillText,
+                      { color: CATEGORY_COLORS[task.category] },
+                    ]}
+                  >
+                    {task.category}
+                  </Text>
+                </View>
                 <Text style={styles.pendingTitle}>{task.title}</Text>
                 {task.description ? (
                   <Text style={styles.pendingDesc}>{task.description}</Text>
                 ) : null}
               </View>
+              <TouchableOpacity
+                style={styles.iconBtn}
+                onPress={() => handleRemovePending(task.id)}
+                hitSlop={8}
+              >
+                <Ionicons name="close" size={14} color={colors.textMuted} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={() => handleRemovePending(task.id)} hitSlop={8}>
-              <Text style={styles.removeBtn}>✕</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
+          ))}
 
-        <View style={styles.taskForm}>
           <TextInput
             style={styles.input}
             value={taskTitle}
             onChangeText={setTaskTitle}
-            placeholder="Task title (required)"
+            placeholder="Task title"
             placeholderTextColor={colors.textMuted}
           />
           <TextInput
@@ -270,40 +311,44 @@ export default function LogDiaryModal() {
             placeholderTextColor={colors.textMuted}
           />
           <View style={styles.categoryRow}>
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryChip,
-                  taskCategory === cat && {
-                    backgroundColor: CATEGORY_COLORS[cat] + '22',
-                    borderColor: CATEGORY_COLORS[cat],
-                  },
-                ]}
-                onPress={() => setTaskCategory(cat)}
-                activeOpacity={0.7}
-              >
-                <Text
+            {CATEGORIES.map((cat) => {
+              const active = taskCategory === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
                   style={[
-                    styles.categoryChipText,
-                    taskCategory === cat && {
-                      color: CATEGORY_COLORS[cat],
-                      fontWeight: '700',
+                    styles.categoryChip,
+                    active && {
+                      backgroundColor: `${CATEGORY_COLORS[cat]}22`,
+                      borderColor: CATEGORY_COLORS[cat],
                     },
                   ]}
+                  onPress={() => setTaskCategory(cat)}
+                  activeOpacity={0.7}
                 >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      active && {
+                        color: CATEGORY_COLORS[cat],
+                        fontWeight: '700',
+                      },
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
           <TouchableOpacity
-            style={[styles.addTaskBtn, !taskTitle.trim() && styles.btnDisabled]}
+            style={[styles.ghostBtn, !taskTitle.trim() && styles.btnDisabled]}
             onPress={handleAddTask}
             disabled={!taskTitle.trim()}
             activeOpacity={0.8}
           >
-            <Text style={styles.addTaskBtnText}>+ Add Task</Text>
+            <Ionicons name="add" size={15} color={colors.accent} />
+            <Text style={styles.ghostBtnText}>Add task</Text>
           </TouchableOpacity>
         </View>
 
@@ -313,6 +358,7 @@ export default function LogDiaryModal() {
           disabled={!canSave}
           activeOpacity={0.8}
         >
+          <Ionicons name="checkmark" size={16} color="#fff" />
           <Text style={styles.saveBtnText}>Save</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -323,42 +369,62 @@ export default function LogDiaryModal() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  content: { padding: spacing.base, paddingBottom: spacing.xxxl },
+  headerCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.md,
     letterSpacing: -0.3,
+    marginBottom: spacing.sm,
+    textAlign: 'left',
   },
   lockedDate: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     backgroundColor: colors.cardElevated,
-    padding: spacing.base,
-    borderRadius: 12,
-    marginBottom: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
   lockedDateText: {
-    fontSize: 15,
+    flex: 1,
+    fontSize: 13,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  lockIcon: {
-    fontSize: 14,
-    opacity: 0.5,
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
     marginBottom: spacing.sm,
-    marginTop: spacing.base,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
   moodRow: {
     flexDirection: 'row',
@@ -366,25 +432,33 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   moodChip: {
-    paddingHorizontal: spacing.base,
-    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
+  },
+  moodDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   moodLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   highlightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -403,31 +477,34 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 20,
   },
+  iconBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
   addRow: {
     flexDirection: 'row',
     gap: spacing.sm,
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   addInput: {
     flex: 1,
-    marginBottom: 0,
   },
   addBtn: {
+    width: 42,
+    alignSelf: 'stretch',
     backgroundColor: colors.accent,
     borderRadius: 10,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-  },
-  addBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    padding: spacing.base,
+    padding: spacing.md,
     fontSize: 15,
     color: colors.textPrimary,
     borderWidth: 1,
@@ -435,30 +512,34 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   textArea: {
-    minHeight: 80,
-    paddingTop: spacing.md,
+    minHeight: 76,
+    paddingTop: spacing.sm,
     textAlignVertical: 'top',
+    marginBottom: 0,
   },
   existingTasksNote: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: `${colors.success}12`,
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 8,
     marginBottom: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: `${colors.success}33`,
   },
   existingTasksText: {
     fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   pendingTask: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    padding: spacing.md,
+    padding: spacing.sm,
     marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -466,25 +547,23 @@ const styles = StyleSheet.create({
   },
   pendingTaskLeft: {
     flex: 1,
-    gap: 4,
-  },
-  pendingTaskText: {
-    gap: 2,
+    gap: 3,
   },
   pendingTitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.textPrimary,
   },
   pendingDesc: {
     fontSize: 12,
     color: colors.textSecondary,
+    lineHeight: 17,
   },
   categoryPill: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
     marginBottom: 4,
   },
   categoryPillText: {
@@ -492,17 +571,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-  },
-  removeBtn: {
-    fontSize: 14,
-    color: colors.textMuted,
-    paddingTop: 2,
-  },
-  taskForm: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
   },
   categoryRow: {
     flexDirection: 'row',
@@ -516,32 +584,38 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
   },
   categoryChipText: {
     fontSize: 12,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  addTaskBtn: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 8,
-    paddingVertical: 10,
+  ghostBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.cardElevated,
+    borderRadius: 10,
+    paddingVertical: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  addTaskBtnText: {
+  ghostBtnText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.accent,
   },
   saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.base,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: spacing.sm,
   },
   btnDisabled: { opacity: 0.4 },
   saveBtnText: {

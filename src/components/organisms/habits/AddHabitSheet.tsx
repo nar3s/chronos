@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -20,21 +21,17 @@ interface Props {
 }
 
 export function AddHabitSheet({ visible, onClose, onSave }: Props) {
-  const [emoji, setEmoji] = useState('');
   const [label, setLabel] = useState('');
 
   function handleSave() {
-    const e = emoji.trim() || '✅';
     const l = label.trim();
     if (l.length < 2) return;
-    onSave(e, l);
-    setEmoji('');
+    onSave('checkmark-circle-outline', l);
     setLabel('');
     onClose();
   }
 
   function handleClose() {
-    setEmoji('');
     setLabel('');
     onClose();
   }
@@ -49,28 +46,24 @@ export function AddHabitSheet({ visible, onClose, onSave }: Props) {
         style={styles.wrapper}
       >
         <View style={styles.sheet}>
-          <Text style={styles.title}>Add Habit</Text>
-
-          <Text style={styles.fieldLabel}>Emoji</Text>
-          <TextInput
-            style={styles.emojiInput}
-            value={emoji}
-            onChangeText={setEmoji}
-            placeholder="🎯"
-            placeholderTextColor={colors.textMuted}
-            maxLength={2}
-            autoFocus
-          />
+          <Text style={styles.fieldLabel}>New habit</Text>
+          <View style={styles.headerRow}>
+            <View style={styles.iconBox}>
+              <Ionicons name="checkmark-circle-outline" size={22} color={colors.success} />
+            </View>
+            <Text style={styles.title}>Add habit</Text>
+          </View>
 
           <Text style={styles.fieldLabel}>Label</Text>
           <TextInput
             style={styles.input}
             value={label}
             onChangeText={setLabel}
-            placeholder="e.g. Cold Shower"
+            placeholder="e.g. Cold shower"
             placeholderTextColor={colors.textMuted}
             maxLength={40}
             autoCapitalize="words"
+            autoFocus
           />
 
           <TouchableOpacity
@@ -79,7 +72,8 @@ export function AddHabitSheet({ visible, onClose, onSave }: Props) {
             disabled={!canSave}
             activeOpacity={0.8}
           >
-            <Text style={styles.saveBtnText}>Add Habit</Text>
+            <Ionicons name="checkmark" size={18} color={colors.textPrimary} />
+            <Text style={styles.saveBtnText}>Add habit</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -103,35 +97,39 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: spacing.md,
+  },
+  iconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.success}18`,
+    borderWidth: 1,
+    borderColor: `${colors.success}33`,
+  },
   title: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: spacing.base,
   },
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  emojiInput: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 12,
-    padding: spacing.base,
-    fontSize: 28,
-    color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    width: 72,
-    textAlign: 'center',
+    marginTop: spacing.sm,
   },
   input: {
     backgroundColor: colors.cardElevated,
-    borderRadius: 12,
+    borderRadius: 10,
     padding: spacing.base,
     fontSize: 15,
     color: colors.textPrimary,
@@ -140,11 +138,14 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: 12,
+    paddingVertical: 13,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
     marginTop: spacing.xl,
   },
   saveBtnDisabled: { opacity: 0.4 },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
 });

@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  Pressable,
+  StyleSheet,
+} from 'react-native';
 import { router } from 'expo-router';
-import { useDiaryStore } from '@/src/store/diaryStore';
+import { Ionicons } from '@expo/vector-icons';
 import { ConfirmationSheet } from '@/src/components/molecules/ConfirmationSheet';
+import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
-import type { MoodType } from '@/src/domain/types/diary';
+import type { DiaryEntry, MoodType } from '@/src/domain/types/diary';
 
 const MOOD_COLORS: Record<MoodType, string> = {
   great: colors.success,
@@ -23,6 +31,8 @@ const MOOD_LABELS: Record<MoodType, string> = {
 
 interface Props {
   date: string;
+  entry: DiaryEntry | null;
+  onDelete: (id: string) => void;
 }
 
 function getHighlights(entry: any): string[] {
@@ -31,9 +41,7 @@ function getHighlights(entry: any): string[] {
   return [];
 }
 
-export function DayEntryCard({ date }: Props) {
-  const entry = useDiaryStore((s) => s.entries.find((e) => e.date === date));
-  const removeEntry = useDiaryStore((s) => s.removeEntry);
+export function DayEntryCard({ date, entry, onDelete }: Props) {
   const [open, setOpen] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -43,8 +51,26 @@ export function DayEntryCard({ date }: Props) {
 
   if (!hasContent) {
     return (
-      <View style={styles.empty}>
-        <Text style={styles.emptyText}>No diary entry for this day</Text>
+      <View>
+        <SectionHeader title="Entry" />
+        <View style={styles.empty}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="journal-outline" size={18} color={colors.textSecondary} />
+          </View>
+          <View style={styles.emptyBody}>
+            <Text style={styles.emptyTitle}>No diary entry</Text>
+            <Text style={styles.emptyText}>
+              Capture highlights, mood, or a takeaway for this day.
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.emptyAction}
+            onPress={() => router.push(`/modals/log-diary?date=${date}` as any)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={16} color={colors.accent} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -59,40 +85,69 @@ export function DayEntryCard({ date }: Props) {
   }
 
   function handleConfirmDelete() {
-    removeEntry(entry!.id);
+    onDelete(entry!.id);
     setShowDeleteConfirm(false);
     setOpen(false);
   }
 
+  const mood = entry!.mood;
+
   return (
     <>
-      <TouchableOpacity style={styles.card} onPress={() => setOpen(true)} activeOpacity={0.75}>
+      <SectionHeader title="Entry" />
+      <TouchableOpacity
+        style={[
+          styles.card,
+          mood
+            ? {
+                borderColor: `${MOOD_COLORS[mood]}66`,
+              }
+            : undefined,
+        ]}
+        onPress={() => setOpen(true)}
+        activeOpacity={0.75}
+      >
+        {mood ? (
+          <View style={[styles.accentRail, { backgroundColor: MOOD_COLORS[mood] }]} />
+        ) : null}
         <View style={styles.cardHeader}>
-          {entry!.mood ? (
+          {mood ? (
             <View
-              style={[styles.moodChip, { backgroundColor: MOOD_COLORS[entry!.mood] + '22' }]}
+              style={[
+                styles.moodChip,
+                {
+                  backgroundColor: `${MOOD_COLORS[mood]}22`,
+                  borderColor: `${MOOD_COLORS[mood]}55`,
+                },
+              ]}
             >
-              <View style={[styles.moodDot, { backgroundColor: MOOD_COLORS[entry!.mood] }]} />
-              <Text style={[styles.moodLabel, { color: MOOD_COLORS[entry!.mood] }]}>
-                {MOOD_LABELS[entry!.mood]}
+              <View style={[styles.moodDot, { backgroundColor: MOOD_COLORS[mood] }]} />
+              <Text style={[styles.moodLabel, { color: MOOD_COLORS[mood] }]}>
+                {MOOD_LABELS[mood]}
               </Text>
             </View>
           ) : (
             <View />
           )}
-          <Text style={styles.chevron}>›</Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
         </View>
 
-        {highlights.length > 0 && (
-          <Text style={styles.preview} numberOfLines={2}>
-            {highlights[0]}
-          </Text>
-        )}
+        {highlights.length > 0 ? (
+          <View style={styles.previewRow}>
+            <Ionicons name="document-text-outline" size={15} color={colors.textSecondary} />
+            <Text style={styles.preview} numberOfLines={2}>
+              {highlights[0]}
+            </Text>
+          </View>
+        ) : null}
 
         {takeaway ? (
-          <Text style={styles.takeawayPreview} numberOfLines={1}>
-            Takeaway: {takeaway}
-          </Text>
+          <View style={styles.takeawayPreviewRow}>
+            <View style={styles.takeawayDot} />
+            <Text style={styles.takeawayPreview} numberOfLines={1}>
+              Takeaway: {takeaway}
+            </Text>
+          </View>
         ) : null}
       </TouchableOpacity>
 
@@ -100,29 +155,30 @@ export function DayEntryCard({ date }: Props) {
         <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
           <Pressable style={styles.dialog} onPress={() => {}}>
             <View style={styles.dialogHeader}>
-              {entry!.mood ? (
+              {mood ? (
                 <View
                   style={[
                     styles.dialogMoodChip,
-                    { backgroundColor: MOOD_COLORS[entry!.mood] + '22' },
+                    {
+                      backgroundColor: `${MOOD_COLORS[mood]}22`,
+                      borderColor: `${MOOD_COLORS[mood]}55`,
+                    },
                   ]}
                 >
-                  <View
-                    style={[styles.moodDot, { backgroundColor: MOOD_COLORS[entry!.mood] }]}
-                  />
-                  <Text style={[styles.moodLabel, { color: MOOD_COLORS[entry!.mood] }]}>
-                    {MOOD_LABELS[entry!.mood]}
+                  <View style={[styles.moodDot, { backgroundColor: MOOD_COLORS[mood] }]} />
+                  <Text style={[styles.moodLabel, { color: MOOD_COLORS[mood] }]}>
+                    {MOOD_LABELS[mood]}
                   </Text>
                 </View>
               ) : (
                 <View />
               )}
               <TouchableOpacity onPress={() => setOpen(false)} hitSlop={10}>
-                <Text style={styles.closeBtn}>✕</Text>
+                <Ionicons name="close" size={18} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
-            {highlights.length > 0 && (
+            {highlights.length > 0 ? (
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>What happened</Text>
                 {highlights.map((h, i) => (
@@ -132,7 +188,7 @@ export function DayEntryCard({ date }: Props) {
                   </View>
                 ))}
               </View>
-            )}
+            ) : null}
 
             {takeaway ? (
               <View style={styles.takeawayBox}>
@@ -142,11 +198,7 @@ export function DayEntryCard({ date }: Props) {
             ) : null}
 
             <View style={styles.dialogActions}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={handleEdit}
-                activeOpacity={0.8}
-              >
+              <TouchableOpacity style={styles.editBtn} onPress={handleEdit} activeOpacity={0.8}>
                 <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -173,23 +225,68 @@ export function DayEntryCard({ date }: Props) {
 
 const styles = StyleSheet.create({
   empty: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: spacing.base,
-    marginBottom: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.base,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
+  },
+  emptyIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.cardElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  emptyBody: {
+    flex: 1,
+  },
+  emptyAction: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.accent}14`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}33`,
+  },
+  emptyTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 3,
   },
   emptyText: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textMuted,
-    fontStyle: 'italic',
+    lineHeight: 17,
   },
   card: {
+    position: 'relative',
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: spacing.base,
-    marginBottom: 12,
-    gap: 6,
+    borderRadius: 14,
+    padding: spacing.md,
+    paddingLeft: spacing.md + 5,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  accentRail: {
+    position: 'absolute',
+    left: 0,
+    top: spacing.md,
+    bottom: spacing.md,
+    width: 3,
+    borderRadius: 99,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -202,16 +299,18 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: 999,
     gap: 6,
+    borderWidth: 1,
   },
   dialogMoodChip: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: 999,
     gap: 6,
+    borderWidth: 1,
   },
   moodDot: {
     width: 6,
@@ -222,22 +321,39 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  chevron: {
-    fontSize: 20,
-    color: colors.textMuted,
-  },
   preview: {
+    flex: 1,
     fontSize: 14,
     color: colors.textPrimary,
     lineHeight: 21,
   },
-  takeawayPreview: {
-    fontSize: 12,
-    color: colors.textMuted,
-    fontStyle: 'italic',
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
   },
-
-  // Modal
+  takeawayPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    borderRadius: 9,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  takeawayDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 99,
+    backgroundColor: colors.accent,
+  },
+  takeawayPreview: {
+    flex: 1,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -251,15 +367,13 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     width: '100%',
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   dialogHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
-  closeBtn: {
-    fontSize: 16,
-    color: colors.textMuted,
   },
   section: {
     gap: 6,
@@ -293,7 +407,7 @@ const styles = StyleSheet.create({
   },
   takeawayBox: {
     backgroundColor: colors.cardElevated,
-    borderRadius: 8,
+    borderRadius: 10,
     padding: spacing.md,
     borderLeftWidth: 3,
     borderLeftColor: colors.accent,
@@ -321,9 +435,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: colors.accent + '18',
+    backgroundColor: `${colors.accent}18`,
     borderWidth: 1,
-    borderColor: colors.accent + '44',
+    borderColor: `${colors.accent}44`,
   },
   editBtnText: {
     fontSize: 14,
@@ -335,9 +449,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: colors.danger + '18',
+    backgroundColor: `${colors.danger}18`,
     borderWidth: 1,
-    borderColor: colors.danger + '44',
+    borderColor: `${colors.danger}44`,
   },
   deleteBtnText: {
     fontSize: 14,

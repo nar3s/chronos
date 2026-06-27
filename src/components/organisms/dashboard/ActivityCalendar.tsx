@@ -1,8 +1,19 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Modal, Pressable, StyleSheet } from 'react-native';
-import { CalendarDayCell, EmptyCell } from '@/src/components/atoms/CalendarDayCell';
-import { colors } from '@/src/theme/colors';
-import type { DayActivity, DaySummary } from '@/src/hooks/useActivityCalendar';
+import {
+  CalendarDayCell,
+  EmptyCell,
+} from "@/src/components/atoms/CalendarDayCell";
+import type { DayActivity, DaySummary } from "@/src/hooks/useActivityCalendar";
+import { colors } from "@/src/theme/colors";
+import { Ionicons } from "@expo/vector-icons";
+import React from "react";
+import {
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface Props {
   days: DayActivity[];
@@ -16,22 +27,31 @@ interface Props {
   onSelectDate: (date: string | null) => void;
 }
 
-const WEEK_HEADERS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const WEEK_HEADERS = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"];
 
 const LEGEND = [
-  { color: colors.accent, label: 'Study' },
-  { color: colors.success, label: 'Gym' },
-  { color: colors.warning, label: 'Protein' },
-  { color: colors.purple, label: 'Sleep' },
+  { color: colors.accent, label: "Study" },
+  { color: colors.success, label: "Gym" },
+  { color: colors.warning, label: "Protein" },
+  { color: colors.purple, label: "Sleep" },
 ];
 
 function formatSummaryDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function pplLabelShort(type: string): string {
-  const map: Record<string, string> = { push: 'Push', pull: 'Pull', legs: 'Legs', rest: 'Rest' };
+  const map: Record<string, string> = {
+    push: "Push",
+    pull: "Pull",
+    legs: "Legs",
+    rest: "Rest",
+  };
   return map[type] ?? type;
 }
 
@@ -63,8 +83,12 @@ export function ActivityCalendar({
     <View style={styles.container}>
       {/* Month header with arrows */}
       <View style={styles.monthRow}>
-        <TouchableOpacity onPress={onPrev} style={styles.arrow} activeOpacity={0.6}>
-          <Text style={styles.arrowText}>‹</Text>
+        <TouchableOpacity
+          onPress={onPrev}
+          style={styles.arrow}
+          activeOpacity={0.6}
+        >
+          <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
         <TouchableOpacity
@@ -73,7 +97,11 @@ export function ActivityCalendar({
           activeOpacity={isCurrentMonth ? 1 : 0.6}
           disabled={isCurrentMonth}
         >
-          <Text style={[styles.arrowText, isCurrentMonth && styles.arrowDisabledText]}>›</Text>
+          <Ionicons
+            name="chevron-forward"
+            size={18}
+            color={isCurrentMonth ? colors.textMuted : colors.textPrimary}
+          />
         </TouchableOpacity>
       </View>
 
@@ -108,7 +136,7 @@ export function ActivityCalendar({
               />
             ) : (
               <EmptyCell key={`e-${ri}-${ci}`} />
-            )
+            ),
           )}
         </View>
       ))}
@@ -135,28 +163,45 @@ export function ActivityCalendar({
             {daySummary && (
               <>
                 <View style={styles.popupHeader}>
-                  <Text style={styles.popupDate}>{formatSummaryDate(daySummary.date)}</Text>
+                  <Text style={styles.popupDate}>
+                    {formatSummaryDate(daySummary.date)}
+                  </Text>
                   <TouchableOpacity
                     onPress={() => onSelectDate(null)}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                   >
-                    <Text style={styles.popupClose}>✕</Text>
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>
 
                 {/* Study */}
                 <View style={styles.popupSection}>
                   <View style={styles.popupDotRow}>
-                    <View style={[styles.popupDot, { backgroundColor: colors.accent, opacity: daySummary.studySessions.length > 0 ? 1 : 0.3 }]} />
-                    <Text style={daySummary.studySessions.length > 0 ? styles.popupLabel : styles.popupMuted}>
+                    <View
+                      style={[
+                        styles.popupDot,
+                        {
+                          backgroundColor: colors.accent,
+                          opacity:
+                            daySummary.studySessions.length > 0 ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={
+                        daySummary.studySessions.length > 0
+                          ? styles.popupLabel
+                          : styles.popupMuted
+                      }
+                    >
                       {daySummary.studySessions.length > 0
-                        ? `Study — ${daySummary.studyTotal}`
-                        : 'No study'}
+                        ? `Study - ${daySummary.studyTotal}`
+                        : "No study"}
                     </Text>
                   </View>
                   {daySummary.studySessions.map((s, i) => (
                     <Text key={i} style={styles.popupDetail}>
-                      {s.topic} · {s.subtopic} ({s.minutes}m)
+                      {s.topic} - {s.subtopic} ({s.minutes}m)
                     </Text>
                   ))}
                 </View>
@@ -164,11 +209,25 @@ export function ActivityCalendar({
                 {/* Gym */}
                 <View style={styles.popupSection}>
                   <View style={styles.popupDotRow}>
-                    <View style={[styles.popupDot, { backgroundColor: colors.success, opacity: daySummary.gymType ? 1 : 0.3 }]} />
-                    <Text style={daySummary.gymType ? styles.popupLabel : styles.popupMuted}>
+                    <View
+                      style={[
+                        styles.popupDot,
+                        {
+                          backgroundColor: colors.success,
+                          opacity: daySummary.gymType ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={
+                        daySummary.gymType
+                          ? styles.popupLabel
+                          : styles.popupMuted
+                      }
+                    >
                       {daySummary.gymType
-                        ? `${pplLabelShort(daySummary.gymType)} — ${daySummary.gymCompleted ? 'Completed ✓' : 'Incomplete'}`
-                        : 'No workout'}
+                        ? `${pplLabelShort(daySummary.gymType)} - ${daySummary.gymCompleted ? "Completed" : "Incomplete"}`
+                        : "No workout"}
                     </Text>
                   </View>
                 </View>
@@ -176,11 +235,25 @@ export function ActivityCalendar({
                 {/* Protein */}
                 <View style={styles.popupSection}>
                   <View style={styles.popupDotRow}>
-                    <View style={[styles.popupDot, { backgroundColor: colors.warning, opacity: daySummary.proteinGrams ? 1 : 0.3 }]} />
-                    <Text style={daySummary.proteinGrams ? styles.popupLabel : styles.popupMuted}>
+                    <View
+                      style={[
+                        styles.popupDot,
+                        {
+                          backgroundColor: colors.warning,
+                          opacity: daySummary.proteinGrams ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={
+                        daySummary.proteinGrams
+                          ? styles.popupLabel
+                          : styles.popupMuted
+                      }
+                    >
                       {daySummary.proteinGrams
                         ? `${daySummary.proteinGrams}g / ${daySummary.proteinTarget}g protein`
-                        : 'No protein logged'}
+                        : "No protein logged"}
                     </Text>
                   </View>
                 </View>
@@ -188,11 +261,25 @@ export function ActivityCalendar({
                 {/* Sleep */}
                 <View style={styles.popupSection}>
                   <View style={styles.popupDotRow}>
-                    <View style={[styles.popupDot, { backgroundColor: colors.purple, opacity: daySummary.sleepDuration ? 1 : 0.3 }]} />
-                    <Text style={daySummary.sleepDuration ? styles.popupLabel : styles.popupMuted}>
+                    <View
+                      style={[
+                        styles.popupDot,
+                        {
+                          backgroundColor: colors.purple,
+                          opacity: daySummary.sleepDuration ? 1 : 0.3,
+                        },
+                      ]}
+                    />
+                    <Text
+                      style={
+                        daySummary.sleepDuration
+                          ? styles.popupLabel
+                          : styles.popupMuted
+                      }
+                    >
                       {daySummary.sleepDuration
                         ? `${Math.floor(daySummary.sleepDuration / 60)}h ${daySummary.sleepDuration % 60}m sleep (bed ${daySummary.sleepBedtime})`
-                        : 'No sleep logged'}
+                        : "No sleep logged"}
                     </Text>
                   </View>
                 </View>
@@ -200,7 +287,15 @@ export function ActivityCalendar({
                 {/* Score */}
                 <View style={styles.popupScore}>
                   <Text style={styles.popupScoreText}>
-                    {[daySummary.studySessions.length > 0, daySummary.gymType && daySummary.gymCompleted, daySummary.proteinGrams, daySummary.sleepDuration].filter(Boolean).length}/4 domains active
+                    {
+                      [
+                        daySummary.studySessions.length > 0,
+                        daySummary.gymType && daySummary.gymCompleted,
+                        daySummary.proteinGrams,
+                        daySummary.sleepDuration,
+                      ].filter(Boolean).length
+                    }
+                    /4 domains active
                   </Text>
                 </View>
               </>
@@ -220,14 +315,14 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   monthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 10,
   },
   monthLabel: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textPrimary,
   },
   arrow: {
@@ -235,51 +330,42 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.cardElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   arrowDisabled: {
     opacity: 0.3,
   },
-  arrowText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: -2,
-  },
-  arrowDisabledText: {
-    color: colors.textMuted,
-  },
   headerRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 4,
   },
   headerCell: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
     margin: 2,
   },
   headerText: {
     fontSize: 10,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.textMuted,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
   },
   row: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   legend: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
     gap: 14,
     marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#2A2A2A',
+    borderTopColor: "#2A2A2A",
   },
   legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   legendDot: {
@@ -290,48 +376,43 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: 10,
     color: colors.textMuted,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 
   // Modal popup
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
     padding: 30,
   },
   popup: {
     backgroundColor: colors.cardElevated,
     borderRadius: 16,
     padding: 20,
-    width: '100%',
+    width: "100%",
     maxWidth: 340,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: "#333",
   },
   popupHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   popupDate: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: "700",
     color: colors.textPrimary,
-  },
-  popupClose: {
-    fontSize: 16,
-    color: colors.textMuted,
-    fontWeight: '600',
   },
   popupSection: {
     marginBottom: 12,
   },
   popupDotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
   popupDot: {
@@ -342,7 +423,7 @@ const styles = StyleSheet.create({
   popupLabel: {
     fontSize: 14,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   popupMuted: {
     fontSize: 14,
@@ -358,12 +439,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#333',
-    alignItems: 'center',
+    borderTopColor: "#333",
+    alignItems: "center",
   },
   popupScoreText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: "600",
     color: colors.accent,
   },
 });

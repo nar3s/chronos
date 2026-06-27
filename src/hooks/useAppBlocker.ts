@@ -1,50 +1,131 @@
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AppState, Platform } from 'react-native';
 import { useDailySnapshot } from './useDailySnapshot';
 import { useSettingsStore } from '@/src/store/settingsStore';
+import { useSnapshotStore } from '@/src/store/snapshotStore';
+import { useStudyStore } from '@/src/store/studyStore';
+import { useGymStore } from '@/src/store/gymStore';
+import { useNutritionStore } from '@/src/store/nutritionStore';
+
+type AppBlockerModule = {
+  setDailyLogPending: (pending: boolean) => void;
+  setBlockedPackages?: (packages: string[]) => void;
+};
+
+let nativeModule: AppBlockerModule | null | undefined;
+let didWarnMissingNativeModule = false;
+
+function getAppBlockerModule(): AppBlockerModule | null {
+  if (nativeModule !== undefined) return nativeModule;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    nativeModule = require('@/modules/my-module').default as AppBlockerModule;
+  } catch {
+    nativeModule = null;
+    if (!didWarnMissingNativeModule) {
+      didWarnMissingNativeModule = true;
+      console.warn('AppBlocker native module not available.');
+    }
+  }
+
+  return nativeModule;
+}
+
+function areBlockerStoresHydrated(): boolean {
+  return (
+    useSettingsStore.persist.hasHydrated() &&
+    useSnapshotStore.persist.hasHydrated() &&
+    useStudyStore.persist.hasHydrated() &&
+    useGymStore.persist.hasHydrated() &&
+    useNutritionStore.persist.hasHydrated()
+  );
+}
 
 export function useAppBlocker() {
   const snapshot = useDailySnapshot();
   const blockerConfig = useSettingsStore((s) => s.blockerConfig);
+  const scheduleConfig = useSettingsStore((s) => s.scheduleConfig);
+  const [timeCheckKey, setTimeCheckKey] = useState(() => Date.now());
+  const [storesHydrated, setStoresHydrated] = useState(areBlockerStoresHydrated);
+
+  useEffect(() => {
+    if (storesHydrated) return;
+
+    const markReadyIfHydrated = () => {
+      if (areBlockerStoresHydrated()) {
+        setStoresHydrated(true);
+      }
+    };
+
+    const unsubscribers = [
+      useSettingsStore.persist.onFinishHydration(markReadyIfHydrated),
+      useSnapshotStore.persist.onFinishHydration(markReadyIfHydrated),
+      useStudyStore.persist.onFinishHydration(markReadyIfHydrated),
+      useGymStore.persist.onFinishHydration(markReadyIfHydrated),
+      useNutritionStore.persist.onFinishHydration(markReadyIfHydrated),
+    ];
+
+    markReadyIfHydrated();
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [storesHydrated]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
 
-    // Determine if daily logs are pending
-    // Rule: Study > 0 AND gym satisfied AND protein > 0
-    const isStudyDone = snapshot.todayStudyMinutes > 0;
+    const refreshTimeCheck = () => setTimeCheckKey(Date.now());
+    const interval = setInterval(refreshTimeCheck, 60 * 1000);
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        refreshTimeCheck();
+      }
+    });
+
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    if (!storesHydrated) return;
+
+    // Rule: study/gym/protein each either logged or explicitly skipped today.
+    const isStudyDone = snapshot.isStudyDoneOrSkipped;
     const isGymDone = snapshot.isGymDoneToday;
-    const isProteinDone = snapshot.todayProteinGrams > 0;
+    const isProteinDone = snapshot.isProteinDoneOrSkipped;
 
     const isPending = !(isStudyDone && isGymDone && isProteinDone);
 
-    // Only apply the block if enabled, after 9 PM (21:00), to force the habit at night
+    const blockerActiveFromHour = scheduleConfig?.blockerActiveFromHour ?? 21;
     const now = new Date();
-    const isAfter9PM = now.getHours() >= 21;
+    const isAfter9PM = now.getHours() >= blockerActiveFromHour;
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const MyModule = require('@/modules/my-module').default;
+    const MyModule = getAppBlockerModule();
+    if (!MyModule) return;
 
-      if (blockerConfig?.enabled && isAfter9PM && isPending) {
-        MyModule.setDailyLogPending(true);
-      } else {
-        MyModule.setDailyLogPending(false);
-      }
+    if (blockerConfig?.enabled && isAfter9PM && isPending) {
+      MyModule.setDailyLogPending(true);
+    } else {
+      MyModule.setDailyLogPending(false);
+    }
 
-      // Also sync the list of blocked packages to native
-      if (MyModule.setBlockedPackages && blockerConfig?.blockedPackages) {
-        MyModule.setBlockedPackages(blockerConfig.blockedPackages);
-      }
-    } catch (err) {
-      // Native module might not be ready on web or Expo Go
-      console.warn("AppBlocker native module not available.");
+    // Also sync the list of blocked packages to native
+    if (MyModule.setBlockedPackages && blockerConfig?.blockedPackages) {
+      MyModule.setBlockedPackages(blockerConfig.blockedPackages);
     }
   }, [
     blockerConfig,
-    snapshot.todayStudyMinutes,
+    scheduleConfig,
+    snapshot.isStudyDoneOrSkipped,
     snapshot.isGymDoneToday,
-    snapshot.todayProteinGrams,
+    snapshot.isProteinDoneOrSkipped,
+    storesHydrated,
+    timeCheckKey,
   ]);
 
   return null;

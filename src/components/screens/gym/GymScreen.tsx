@@ -1,100 +1,129 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
+import { GymHeroCard } from '@/src/components/organisms/gym/GymHeroCard';
 import { GymSessionChecklist } from '@/src/components/organisms/gym/GymSessionChecklist';
 import { ProteinSleepRow } from '@/src/components/organisms/gym/ProteinSleepRow';
 import { WeeklyGrid } from '@/src/components/organisms/gym/WeeklyGrid';
 import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { Badge } from '@/src/components/atoms/Badge';
-import { SparkLine } from '@/src/components/atoms/SparkLine';
 import { useGym } from '@/src/hooks/useGym';
+import { useSnapshotStore } from '@/src/store/snapshotStore';
 import { colors } from '@/src/theme/colors';
-import { formatWeight, pplLabel } from '@/src/utils/formatters';
+import { pplLabel } from '@/src/utils/formatters';
 import { formatDisplayDate, getToday } from '@/src/utils/dates';
+import { spacing } from '@/src/theme/spacing';
 
 export function GymScreen() {
   const gym = useGym();
-
-  const weightDelta =
-    gym.weightTrend.length >= 2
-      ? (gym.weightTrend[gym.weightTrend.length - 1] - gym.weightTrend[0]).toFixed(1)
-      : null;
+  const isToday = gym.selectedDate === getToday();
+  const todaySnapshot = useSnapshotStore((s) =>
+    s.snapshots.find((snapshot) => snapshot.date === getToday())
+  );
+  const updateSnapshot = useSnapshotStore((s) => s.updateSnapshot);
 
   return (
     <ScreenTemplate>
-      <View style={styles.headerPad}>
-        <Text style={styles.heading}>Gym & Nutrition</Text>
-      </View>
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 0)}>
+        <GymHeroCard
+          pplDay={gym.selectedPplDay}
+          session={gym.todaySession ?? null}
+          streak={gym.gymStreak}
+          latestWeight={gym.latestWeight}
+          weightTrend={gym.weightTrend}
+          isToday={isToday}
+          isSkipped={!!todaySnapshot?.gymSkipped}
+          onToggleSkip={() =>
+            updateSnapshot(getToday(), { gymSkipped: !todaySnapshot?.gymSkipped })
+          }
+        />
+      </Animated.View>
 
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 1)}>
       {gym.todaySession ? (
         <GymSessionChecklist
           session={gym.todaySession}
           dateLabel={
-            gym.selectedDate === getToday()
+            isToday
               ? "TODAY'S SESSION"
               : formatDisplayDate(gym.selectedDate).toUpperCase()
           }
+          lastWeightsByExercise={gym.lastWeightsByExercise}
           onToggle={gym.toggleExercise}
         />
       ) : (
-        <View style={styles.card}>
-          <Text style={styles.noSession}>
-            {gym.selectedPplDay === 'rest'
-              ? 'Rest day - no workout scheduled.'
-              : 'No workout logged for this day yet.'}
-          </Text>
+        <View>
+          <SectionHeader
+            title={isToday ? "Today's Session" : formatDisplayDate(gym.selectedDate)}
+          />
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <Ionicons
+                name={gym.selectedPplDay === 'rest' ? 'moon-outline' : 'barbell-outline'}
+                size={18}
+                color={colors.textSecondary}
+              />
+            </View>
+            <View style={styles.emptyBody}>
+              <Text style={styles.emptyTitle}>
+                {gym.selectedPplDay === 'rest' ? 'Recovery day' : 'No workout logged'}
+              </Text>
+              <Text style={styles.emptyText}>
+                {gym.selectedPplDay === 'rest'
+                  ? 'Active recovery day. Keep protein and sleep on track.'
+                  : 'Open the log modal to add details for this day.'}
+              </Text>
+            </View>
+            {gym.selectedPplDay === 'rest' && isToday ? (
+              <TouchableOpacity
+                style={styles.restLink}
+                onPress={() => router.push('/modals/log-workout')}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="add-circle-outline"
+                  size={14}
+                  color={colors.accent}
+                />
+                <Text style={styles.restLinkText}>Log cardio</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       )}
+      </Animated.View>
 
-      <ProteinSleepRow nutrition={gym.todayNutrition} sleep={gym.sleepLog} />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 2)}>
+        <ProteinSleepRow nutrition={gym.todayNutrition} sleep={gym.sleepLog} />
+      </Animated.View>
 
-      <WeeklyGrid
-        days={gym.weekGrid.map((day) => ({
-          ...day,
-          isSelected: day.day === gym.selectedDate,
-        }))}
-        onSelectDay={gym.setSelectedDate}
-      />
-
-      <SectionHeader title="Body Weight" />
-      <View style={styles.card}>
-        <View style={styles.weightRow}>
-          <View>
-            <Text style={styles.weightLabel}>BODY WEIGHT</Text>
-            <Text style={styles.weightValue}>
-              {gym.latestWeight ? formatWeight(gym.latestWeight.weightKg) : '--'}
-            </Text>
-            {weightDelta !== null && (
-              <Text
-                style={[
-                  styles.weightDelta,
-                  { color: parseFloat(weightDelta) >= 0 ? colors.success : colors.danger },
-                ]}
-              >
-                {parseFloat(weightDelta) >= 0 ? '+' : ''}
-                {weightDelta} this week
-              </Text>
-            )}
-          </View>
-          {gym.weightTrend.length >= 2 && (
-            <SparkLine data={gym.weightTrend} width={100} height={30} />
-          )}
-        </View>
-      </View>
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 3)}>
+        <WeeklyGrid
+          days={gym.weekGrid.map((day) => ({
+            ...day,
+            isSelected: day.day === gym.selectedDate,
+          }))}
+          onSelectDay={gym.setSelectedDate}
+        />
+      </Animated.View>
 
       {gym.recentSessions.length > 0 && (
-        <>
-          <SectionHeader title="Previous Workouts" />
+        <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 4)}>
+          <SectionHeader title="Recent Workouts" />
           {gym.recentSessions.map((session) => (
             <View key={session.id} style={styles.historyCard}>
               <View style={styles.historyRow}>
                 <View style={styles.historyLeft}>
                   <Text style={styles.historyType}>{pplLabel(session.type)}</Text>
-                  <Text style={styles.historyDate}>{formatHistoryDate(session.date)}</Text>
+                  <Text style={styles.historyDate}>
+                    {formatHistoryDate(session.date)}
+                  </Text>
                   {session.exercises.length > 0 && (
                     <Text style={styles.historyExercises} numberOfLines={1}>
-                      {session.exercises.map((exercise) => exercise.name).join(' - ')}
+                      {session.exercises.map((e) => e.name).join(' - ')}
                     </Text>
                   )}
                 </View>
@@ -105,77 +134,102 @@ export function GymScreen() {
               </View>
             </View>
           ))}
-        </>
+        </Animated.View>
       )}
 
-      <TouchableOpacity
-        style={styles.logBtn}
-        onPress={() => router.push('/modals/log-workout')}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logBtnText}>+ Log Stats</Text>
-      </TouchableOpacity>
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 5)}>
+        <TouchableOpacity
+          style={styles.logBtn}
+          onPress={() => router.push('/modals/log-workout')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="create-outline" size={16} color="#fff" />
+          <Text style={styles.logBtnText}>Log details</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </ScreenTemplate>
   );
 }
 
+const STAGGER = 70;
+
 function formatHistoryDate(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
 }
 
 const styles = StyleSheet.create({
-  headerPad: {
-    paddingTop: 8,
-    marginBottom: 4,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
-  },
-  noSession: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  weightRow: {
+  emptyCard: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.base,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: 12,
   },
-  weightLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  emptyIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.cardElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  weightValue: {
-    fontSize: 20,
+  emptyBody: {
+    flex: 1,
+  },
+  emptyTitle: {
+    fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginTop: 4,
-    fontVariant: ['tabular-nums'],
+    marginBottom: 3,
   },
-  weightDelta: {
+  emptyText: {
     fontSize: 12,
-    marginTop: 2,
+    color: colors.textMuted,
+    lineHeight: 17,
+  },
+  restLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: `${colors.accent}1A`,
+  },
+  restLinkText: {
+    fontSize: 12,
+    color: colors.accent,
+    fontWeight: '600',
   },
   historyCard: {
     backgroundColor: colors.card,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
+    padding: spacing.base,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   historyRow: {
     flexDirection: 'row',
@@ -188,8 +242,9 @@ const styles = StyleSheet.create({
   },
   historyType: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textPrimary,
+    letterSpacing: -0.2,
   },
   historyDate: {
     fontSize: 12,
@@ -199,15 +254,18 @@ const styles = StyleSheet.create({
   historyExercises: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 6,
   },
   logBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   logBtnText: {
     fontSize: 14,

@@ -40,7 +40,13 @@ export const useGymStore = create<GymState>()(
       bodyWeightEntries: [],
 
       addSession: (session) =>
-        set((s) => ({ sessions: [...s.sessions, session] })),
+        set((s) => ({
+          sessions: s.sessions.some(
+            (existing) => existing.id === session.id || existing.date === session.date
+          )
+            ? s.sessions
+            : [...s.sessions, session],
+        })),
 
       toggleExercise: (sessionId, exerciseName) =>
         set((s) => ({
@@ -50,7 +56,7 @@ export const useGymStore = create<GymState>()(
               ex.name === exerciseName ? { ...ex, done: !ex.done } : ex
             );
             const allDone = exercises.length > 0 && exercises.every((ex) => ex.done);
-            return { ...sess, exercises, completed: allDone ? true : sess.completed };
+            return { ...sess, exercises, completed: allDone };
           }),
         })),
 

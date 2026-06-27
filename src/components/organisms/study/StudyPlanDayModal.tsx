@@ -1,21 +1,21 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
-import { useStudyStore } from '@/src/store/studyStore';
-import { useStudyPlanStore } from '@/src/store/studyPlanStore';
 import { getTopicDisplay } from '@/src/domain/constants/topics';
 import { Badge } from '@/src/components/atoms/Badge';
 import { minutesToHHMM } from '@/src/utils/formatters';
+import type { StudySession } from '@/src/domain/types/study';
+import type { PlannedStudyItem } from '@/src/domain/types/studyPlan';
 
 interface Props {
   date: string | null;
+  planItems: PlannedStudyItem[];
+  sessions: StudySession[];
   onClose: () => void;
 }
 
-export function StudyPlanDayModal({ date, onClose }: Props) {
-  const planItems = useStudyPlanStore((s) => s.items);
-  const sessions = useStudyStore((s) => s.sessions);
-
+export function StudyPlanDayModal({ date, planItems, sessions, onClose }: Props) {
   const { plannedForDay, sessionsForDay, totalPlannedMinutes, totalActualMinutes, adherence } = useMemo(() => {
     if (!date) {
       return { plannedForDay: [], sessionsForDay: [], totalPlannedMinutes: 0, totalActualMinutes: 0, adherence: null };
@@ -91,7 +91,11 @@ export function StudyPlanDayModal({ date, onClose }: Props) {
                         <Text style={[styles.itemSubtopic, item.completed && styles.itemCompleted]}>{item.subtopic}</Text>
                         <Text style={styles.itemTime}>{minutesToHHMM(item.plannedMinutes)}</Text>
                       </View>
-                      {item.completed ? <Text style={styles.checkIcon}>✓</Text> : <Text style={styles.missIcon}>✕</Text>}
+                      <Ionicons
+                        name={item.completed ? 'checkmark-circle-outline' : 'close-circle-outline'}
+                        size={20}
+                        color={item.completed ? colors.success : colors.danger}
+                      />
                     </View>
                   );
                 })}
@@ -238,16 +242,6 @@ const styles = StyleSheet.create({
   itemTime: {
     fontSize: 12,
     color: colors.textSecondary,
-  },
-  checkIcon: {
-    fontSize: 18,
-    color: colors.success,
-    fontWeight: '700',
-  },
-  missIcon: {
-    fontSize: 16,
-    color: colors.danger,
-    fontWeight: '700',
   },
   emptyText: {
     color: colors.textMuted,

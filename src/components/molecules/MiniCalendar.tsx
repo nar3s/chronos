@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 
 interface Props {
@@ -67,11 +68,11 @@ export function MiniCalendar({ selectedDate, onSelectDate }: Props) {
     <View style={styles.container}>
       <View style={styles.monthRow}>
         <TouchableOpacity onPress={goPrev} style={styles.arrow}>
-          <Text style={styles.arrowText}>‹</Text>
+          <Ionicons name="chevron-back" size={18} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
         <TouchableOpacity onPress={goNext} style={styles.arrow}>
-          <Text style={styles.arrowText}>›</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -137,12 +138,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardElevated,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  arrowText: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginTop: -2,
   },
   headerRow: {
     flexDirection: 'row',

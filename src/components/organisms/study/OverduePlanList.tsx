@@ -24,7 +24,7 @@ export function OverduePlanList({ items }: Props) {
   if (items.length === 0) return null;
 
   return (
-    <View>
+    <View style={{ marginBottom: 6 }}>
       <SectionHeader title="Overdue Items" />
       {items.map((item) => {
         const topic = getTopicDisplay(item.topic);

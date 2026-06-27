@@ -26,7 +26,9 @@ export const useNutritionStore = create<NutritionState>()(
 
       updateLog: (date, patch) =>
         set((s) => ({
-          logs: s.logs.map((l) => (l.date === date ? { ...l, ...patch } : l)),
+          logs: s.logs.some((log) => log.date === date)
+            ? s.logs.map((log) => (log.date === date ? { ...log, ...patch } : log))
+            : [...s.logs, { date, proteinGrams: 0, targetGrams: 160, ...patch }],
         })),
 
       getTodayLog: () => {

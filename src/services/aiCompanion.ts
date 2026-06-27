@@ -29,7 +29,7 @@ function buildPrompt(ctx: InsightContext): string {
   const notesText =
     ctx.recentSessionNotes.length > 0
       ? ctx.recentSessionNotes
-          .map((n) => `- ${n.date} | ${n.topic} — ${n.subtopic}: "${n.notes}"`)
+          .map((n) => `- ${n.date} | ${n.topic} - ${n.subtopic}: "${n.notes}"`)
           .join('\n')
       : 'No notes logged yet.';
 
@@ -40,7 +40,7 @@ function buildPrompt(ctx: InsightContext): string {
           .join('\n')
       : 'None yet.';
 
-  return `You are a focused daily coach for a student preparing for GATE MA (Mathematics). Generate a 2-sentence personalized insight based on today's data. Be direct, specific, and motivating — reference actual topics and takeaways when available. No generic advice.
+  return `You are a focused daily coach for a student preparing for GATE MA (Mathematics). Generate a 2-sentence personalized insight based on today's data. Be direct, specific, and motivating - reference actual topics and takeaways when available. No generic advice.
 
 TODAY'S DATA:
 - Study: ${ctx.studyMinutesToday}min today, ${ctx.studyStreak}-day streak, ${ctx.weeklyStudyMinutes}min this week (${weekPct}% of ${ctx.weeklyStudyGoalMinutes}min weekly goal)

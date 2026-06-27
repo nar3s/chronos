@@ -7,7 +7,8 @@ import {
   Pressable,
   StyleSheet,
 } from 'react-native';
-import { useDiaryStore } from '@/src/store/diaryStore';
+import { Ionicons } from '@expo/vector-icons';
+import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 import type { DoneTask, TaskCategory } from '@/src/domain/types/diary';
@@ -21,59 +22,76 @@ const CATEGORY_COLORS: Record<TaskCategory, string> = {
 };
 
 interface Props {
-  date: string;
+  tasks: DoneTask[];
+  onDelete: (id: string) => void;
 }
 
-export function DoneTasksList({ date }: Props) {
-  const allTasks = useDiaryStore((s) => s.tasks);
-  const tasks = allTasks.filter((t) => t.date === date);
-  const removeTask = useDiaryStore((s) => s.removeTask);
-
+export function DoneTasksList({ tasks, onDelete }: Props) {
   const [selected, setSelected] = useState<DoneTask | null>(null);
 
   if (tasks.length === 0) return null;
 
   return (
     <>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tasks Done</Text>
-        {tasks.map((task) => (
-          <TouchableOpacity
-            key={task.id}
-            style={styles.taskRow}
-            onPress={() => setSelected(task)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.taskContent}>
-              <View style={styles.taskTop}>
-                <View
-                  style={[
-                    styles.categoryChip,
-                    { backgroundColor: CATEGORY_COLORS[task.category] + '22' },
-                  ]}
-                >
-                  <Text
+      <View>
+        <SectionHeader title={`Tasks Done (${tasks.length})`} />
+        <View style={styles.card}>
+          {tasks.map((task, index) => (
+            <TouchableOpacity
+              key={task.id}
+              style={[styles.taskRow, index > 0 && styles.taskBorder]}
+              onPress={() => setSelected(task)}
+              activeOpacity={0.7}
+            >
+              <View
+                style={[
+                  styles.accentRail,
+                  { backgroundColor: CATEGORY_COLORS[task.category] },
+                ]}
+              />
+              <View
+                style={[
+                  styles.taskIcon,
+                  { backgroundColor: `${CATEGORY_COLORS[task.category]}18` },
+                ]}
+              >
+                <Ionicons
+                  name="checkmark-circle-outline"
+                  size={16}
+                  color={CATEGORY_COLORS[task.category]}
+                />
+              </View>
+              <View style={styles.taskContent}>
+                <View style={styles.taskTop}>
+                  <View
                     style={[
-                      styles.categoryText,
-                      { color: CATEGORY_COLORS[task.category] },
+                      styles.categoryChip,
+                      { backgroundColor: `${CATEGORY_COLORS[task.category]}22` },
                     ]}
                   >
-                    {task.category}
+                    <Text
+                      style={[
+                        styles.categoryText,
+                        { color: CATEGORY_COLORS[task.category] },
+                      ]}
+                    >
+                      {task.category}
+                    </Text>
+                  </View>
+                  <Text style={styles.taskTitle} numberOfLines={1}>
+                    {task.title}
                   </Text>
                 </View>
-                <Text style={styles.taskTitle} numberOfLines={1}>
-                  {task.title}
-                </Text>
+                {task.description ? (
+                  <Text style={styles.taskDesc} numberOfLines={1}>
+                    {task.description}
+                  </Text>
+                ) : null}
               </View>
-              {task.description ? (
-                <Text style={styles.taskDesc} numberOfLines={1}>
-                  {task.description}
-                </Text>
-              ) : null}
-            </View>
-            <Text style={styles.chevron}>›</Text>
-          </TouchableOpacity>
-        ))}
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       <Modal
@@ -84,13 +102,13 @@ export function DoneTasksList({ date }: Props) {
       >
         <Pressable style={styles.backdrop} onPress={() => setSelected(null)}>
           <Pressable style={styles.dialog} onPress={() => {}}>
-            {selected && (
+            {selected ? (
               <>
                 <View style={styles.dialogHeader}>
                   <View
                     style={[
                       styles.dialogCategoryChip,
-                      { backgroundColor: CATEGORY_COLORS[selected.category] + '22' },
+                      { backgroundColor: `${CATEGORY_COLORS[selected.category]}22` },
                     ]}
                   >
                     <View
@@ -109,7 +127,7 @@ export function DoneTasksList({ date }: Props) {
                     </Text>
                   </View>
                   <TouchableOpacity onPress={() => setSelected(null)} hitSlop={10}>
-                    <Text style={styles.closeBtn}>✕</Text>
+                    <Ionicons name="close" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 </View>
 
@@ -122,7 +140,7 @@ export function DoneTasksList({ date }: Props) {
                 <TouchableOpacity
                   style={styles.deleteBtn}
                   onPress={() => {
-                    removeTask(selected.id);
+                    onDelete(selected.id);
                     setSelected(null);
                   }}
                   activeOpacity={0.8}
@@ -130,7 +148,7 @@ export function DoneTasksList({ date }: Props) {
                   <Text style={styles.deleteBtnText}>Delete Task</Text>
                 </TouchableOpacity>
               </>
-            )}
+            ) : null}
           </Pressable>
         </Pressable>
       </Modal>
@@ -139,26 +157,40 @@ export function DoneTasksList({ date }: Props) {
 }
 
 const styles = StyleSheet.create({
-  section: {
+  card: {
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: spacing.base,
-    marginBottom: 12,
-    gap: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   taskRow: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    paddingVertical: 9,
+    paddingLeft: 10,
+  },
+  taskIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  accentRail: {
+    position: 'absolute',
+    left: 0,
+    top: 10,
+    bottom: 10,
+    width: 3,
+    borderRadius: 99,
+  },
+  taskBorder: {
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
@@ -174,8 +206,8 @@ const styles = StyleSheet.create({
   },
   categoryChip: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   categoryText: {
     fontSize: 10,
@@ -185,7 +217,7 @@ const styles = StyleSheet.create({
   },
   taskTitle: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: '600',
     color: colors.textPrimary,
     flex: 1,
   },
@@ -194,13 +226,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     lineHeight: 17,
   },
-  chevron: {
-    fontSize: 20,
-    color: colors.textMuted,
-    marginTop: -1,
-  },
-
-  // Modal
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
@@ -214,6 +239,8 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     width: '100%',
     gap: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   dialogHeader: {
     flexDirection: 'row',
@@ -225,7 +252,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: 5,
-    borderRadius: 20,
+    borderRadius: 999,
     gap: 6,
   },
   dialogCategoryDot: {
@@ -238,10 +265,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.3,
-  },
-  closeBtn: {
-    fontSize: 16,
-    color: colors.textMuted,
   },
   dialogTitle: {
     fontSize: 18,
@@ -259,9 +282,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: colors.danger + '18',
+    backgroundColor: `${colors.danger}18`,
     borderWidth: 1,
-    borderColor: colors.danger + '44',
+    borderColor: `${colors.danger}44`,
   },
   deleteBtnText: {
     fontSize: 14,

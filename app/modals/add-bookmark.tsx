@@ -1,8 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, ScrollView, Platform } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { Toggle } from '@/src/components/atoms/Toggle';
 import { useLocalSearchParams, router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
+import { Ionicons } from '@expo/vector-icons';
+import { format, parseISO } from 'date-fns';
 import { useBookmarkStore } from '@/src/store/bookmarkStore';
+import {
+  cancelBookmarkNotification,
+  ensureNotificationPermission,
+  scheduleBookmarkNotification,
+} from '@/src/services/notifications';
 import { getToday } from '@/src/utils/dates';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -20,49 +36,54 @@ const RECURRENCE_OPTIONS: { label: string; value: RecurrenceType }[] = [
   { label: 'Yearly', value: 'yearly' },
 ];
 
-function getBookmarkNotificationId(bookmarkId: string) {
-  return `bookmark-${bookmarkId}`;
+function formatTime(d: Date) {
+  let h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+function formatDateLabel(date: string) {
+  return format(parseISO(date), 'EEEE, MMMM d, yyyy');
 }
 
 export default function AddBookmarkModal() {
   const { id, date } = useLocalSearchParams<{ id?: string; date?: string }>();
-  const store = useBookmarkStore();
-  
-  const existing = id ? store.getBookmarkById(id) : undefined;
-  
+  const bookmarks = useBookmarkStore((s) => s.bookmarks);
+  const addBookmark = useBookmarkStore((s) => s.addBookmark);
+  const updateBookmark = useBookmarkStore((s) => s.updateBookmark);
+  const removeBookmark = useBookmarkStore((s) => s.removeBookmark);
+
+  const existing = id ? bookmarks.find((bookmark) => bookmark.id === id) : undefined;
+
   const [targetDate, setTargetDate] = useState<string>(existing?.date || date || getToday());
   const [showDatePicker, setShowDatePicker] = useState(false);
-
   const [label, setLabel] = useState(existing?.label || '');
   const [note, setNote] = useState(existing?.note || '');
   const [recurrence, setRecurrence] = useState<RecurrenceType>(existing?.recurrence || 'none');
-  
   const [remind, setRemind] = useState(!!existing?.notifyAt);
-  
-  const initialTime = existing?.notifyAt ? new Date(existing.notifyAt) : new Date(new Date().setHours(9, 0, 0, 0));
+  const initialTime = existing?.notifyAt
+    ? new Date(existing.notifyAt)
+    : new Date(new Date().setHours(9, 0, 0, 0));
   const [time, setTime] = useState<Date>(initialTime);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  
-  const [alert, setAlert] = useState<{ visible: boolean; title: string; message: string }>({ visible: false, title: '', message: '' });
-
-  function formatTime(d: Date) {
-    let h = d.getHours();
-    const m = d.getMinutes();
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    h = h % 12;
-    h = h ? h : 12;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')} ${ampm}`;
-  }
+  const [alert, setAlert] = useState<{ visible: boolean; title: string; message: string }>({
+    visible: false,
+    title: '',
+    message: '',
+  });
 
   async function checkPermissions() {
-    const { status } = await Notifications.getPermissionsAsync();
-    if (status !== 'granted') {
-      const { status: newStatus } = await Notifications.requestPermissionsAsync();
-      if (newStatus !== 'granted') {
-        setAlert({ visible: true, title: "Permission Required", message: "Please enable notifications in settings to set reminders." });
-        setRemind(false);
-      }
+    const granted = await ensureNotificationPermission();
+    if (!granted) {
+      setAlert({
+        visible: true,
+        title: 'Permission Required',
+        message: 'Please enable notifications in settings to set reminders.',
+      });
+      setRemind(false);
     }
   }
 
@@ -79,17 +100,18 @@ export default function AddBookmarkModal() {
 
   async function handleSave() {
     if (!label.trim()) {
-      setAlert({ visible: true, title: "Error", message: "Please enter a label for this bookmark." });
+      setAlert({
+        visible: true,
+        title: 'Label Required',
+        message: 'Please enter a label for this bookmark.',
+      });
       return;
     }
 
     const bookmarkId = existing?.id || Date.now().toString();
-    const stableNotificationId = getBookmarkNotificationId(bookmarkId);
 
-    if (existing?.notificationId) {
-      await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
-    } else if (existing) {
-      await Notifications.cancelScheduledNotificationAsync(stableNotificationId);
+    if (existing) {
+      await cancelBookmarkNotification(bookmarkId);
     }
 
     let notificationId: string | undefined;
@@ -99,52 +121,22 @@ export default function AddBookmarkModal() {
       const reminderDate = getComputedDate();
 
       if (recurrence === 'none' && reminderDate < new Date()) {
-        setAlert({ visible: true, title: "Invalid Time", message: "The reminder time is in the past." });
+        setAlert({
+          visible: true,
+          title: 'Invalid Time',
+          message: 'The reminder time is in the past.',
+        });
         return;
       }
 
       notifyAt = reminderDate.toISOString();
 
-      let trigger: Notifications.NotificationTriggerInput;
-      
-      if (recurrence === 'none') {
-        trigger = { 
-          type: Notifications.SchedulableTriggerInputTypes.DATE, 
-          date: reminderDate 
-        };
-      } else {
-        const calTrigger: any = { repeats: true };
-        if (recurrence === 'daily') {
-          calTrigger.hour = reminderDate.getHours();
-          calTrigger.minute = reminderDate.getMinutes();
-        } else if (recurrence === 'weekly') {
-          calTrigger.weekday = reminderDate.getDay() + 1;
-          calTrigger.hour = reminderDate.getHours();
-          calTrigger.minute = reminderDate.getMinutes();
-        } else if (recurrence === 'monthly') {
-          calTrigger.day = reminderDate.getDate();
-          calTrigger.hour = reminderDate.getHours();
-          calTrigger.minute = reminderDate.getMinutes();
-        } else if (recurrence === 'yearly') {
-          calTrigger.month = reminderDate.getMonth() + 1;
-          calTrigger.day = reminderDate.getDate();
-          calTrigger.hour = reminderDate.getHours();
-          calTrigger.minute = reminderDate.getMinutes();
-        }
-        trigger = {
-          type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
-          ...calTrigger
-        };
-      }
-
-      notificationId = await Notifications.scheduleNotificationAsync({
-        identifier: stableNotificationId,
-        content: {
-          title: `📌 ${label}`,
-          body: note || 'You have a bookmarked reminder for today.',
-          data: { screen: 'journal' },
-        },
-        trigger,
+      notificationId = await scheduleBookmarkNotification({
+        bookmarkId,
+        title: label.trim(),
+        body: note.trim() || 'You have a bookmarked reminder for today.',
+        reminderDate,
+        recurrence,
       });
     }
 
@@ -159,248 +151,366 @@ export default function AddBookmarkModal() {
     };
 
     if (existing) {
-      store.updateBookmark(existing.id, bookmark);
+      updateBookmark(existing.id, bookmark);
     } else {
-      store.addBookmark(bookmark);
+      addBookmark(bookmark);
     }
 
     router.back();
   }
 
   async function executeDelete() {
-    if (existing) {
-      if (existing.notificationId) {
-        await Notifications.cancelScheduledNotificationAsync(existing.notificationId);
-      } else {
-        await Notifications.cancelScheduledNotificationAsync(getBookmarkNotificationId(existing.id));
-      }
-      store.removeBookmark(existing.id);
-      router.back();
-    }
+    if (!existing) return;
+    await cancelBookmarkNotification(existing.id);
+    removeBookmark(existing.id);
+    router.back();
   }
 
   return (
-    <>
-      <CustomAlert 
-        visible={alert.visible} 
-        title={alert.title} 
-        message={alert.message} 
-        onClose={() => setAlert({ ...alert, visible: false })} 
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <CustomAlert
+        visible={alert.visible}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert({ ...alert, visible: false })}
       />
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-        <View style={styles.header}>
-          <Text style={styles.label}>Target Date</Text>
-          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowDatePicker(!showDatePicker)}>
-            <Text style={styles.dateBtnText}>{targetDate}</Text>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.headerCard}>
+          <Text style={styles.kicker}>BOOKMARK</Text>
+          <Text style={styles.title}>{existing ? 'Edit bookmark' : 'Add bookmark'}</Text>
+          <TouchableOpacity
+            style={styles.dateBtn}
+            onPress={() => setShowDatePicker(true)}
+            activeOpacity={0.75}
+          >
+            <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
+            <Text style={styles.dateBtnText}>{formatDateLabel(targetDate)}</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
-        <DatePickerSheet
-          visible={showDatePicker}
-          title="Select Date"
-          value={targetDate}
-          onCancel={() => setShowDatePicker(false)}
-          onConfirm={(val) => {
-            setTargetDate(val);
-            setShowDatePicker(false);
-          }}
-        />
-
-        <Text style={styles.label}>Label</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., Car Insurance Renewal"
-          placeholderTextColor={colors.textMuted}
-          value={label}
-          onChangeText={setLabel}
-        />
-
-        <Text style={styles.label}>Note (Optional)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Any specific details..."
-          placeholderTextColor={colors.textMuted}
-          value={note}
-          onChangeText={setNote}
-          multiline
-          numberOfLines={3}
-        />
-
-        <Text style={styles.label}>Repeat</Text>
-        <View style={styles.recurrenceRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-            {RECURRENCE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.chip, recurrence === opt.value && styles.chipActive]}
-                onPress={() => setRecurrence(opt.value)}
-              >
-                <Text style={[styles.chipText, recurrence === opt.value && styles.chipTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        <View style={styles.switchRow}>
-          <Text style={styles.switchLabel}>Push Notification</Text>
-          <Switch
-            value={remind}
-            onValueChange={setRemind}
-            trackColor={{ false: colors.border, true: `${colors.accent}90` }}
-            thumbColor={remind ? colors.accent : '#888'}
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Label</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Car insurance renewal"
+            placeholderTextColor={colors.textMuted}
+            value={label}
+            onChangeText={setLabel}
           />
         </View>
 
-        {remind && (
-          <View style={styles.header}>
-            <Text style={styles.label}>Reminder Time</Text>
-            <TouchableOpacity style={styles.dateBtn} onPress={() => setShowTimePicker(true)}>
-              <Text style={styles.dateBtnText}>{formatTime(time)}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Note</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Any specific details..."
+            placeholderTextColor={colors.textMuted}
+            value={note}
+            onChangeText={setNote}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
 
-        <TimePickerSheet
-          visible={showTimePicker}
-          title="Reminder Time"
-          value={time}
-          onCancel={() => setShowTimePicker(false)}
-          onConfirm={(val) => {
-            setTime(val);
-            setShowTimePicker(false);
-          }}
-        />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Repeat</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.recurrenceContent}
+          >
+            {RECURRENCE_OPTIONS.map((opt) => {
+              const active = recurrence === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.chip, active && styles.chipActive]}
+                  onPress={() => setRecurrence(opt.value)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        <View style={styles.card}>
+          <View style={styles.switchRow}>
+            <View style={styles.switchCopy}>
+              <Text style={styles.switchLabel}>Reminder</Text>
+              <Text style={styles.switchHint}>
+                {remind ? 'Notification enabled' : 'No notification scheduled'}
+              </Text>
+            </View>
+            <Toggle size="sm" value={remind} onValueChange={setRemind} />
+          </View>
+
+          {remind ? (
+            <TouchableOpacity
+              style={styles.timeBtn}
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+              <View style={styles.timeCopy}>
+                <Text style={styles.timeLabel}>Reminder time</Text>
+                <Text style={styles.timeText}>{formatTime(time)}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         <View style={styles.footer}>
-          {existing && (
-            <TouchableOpacity style={[styles.btn, styles.deleteBtn]} onPress={() => setShowDeleteConfirm(true)}>
+          {existing ? (
+            <TouchableOpacity
+              style={[styles.btn, styles.deleteBtn]}
+              onPress={() => setShowDeleteConfirm(true)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="trash-outline" size={15} color={colors.danger} />
               <Text style={styles.deleteBtnText}>Delete</Text>
             </TouchableOpacity>
-          )}
-          <TouchableOpacity style={[styles.btn, styles.saveBtn]} onPress={handleSave}>
+          ) : null}
+          <TouchableOpacity
+            style={[styles.btn, styles.saveBtn, !label.trim() && styles.btnDisabled]}
+            onPress={handleSave}
+            disabled={!label.trim()}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="checkmark" size={16} color="#fff" />
             <Text style={styles.saveBtnText}>Save Bookmark</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
 
+      <DatePickerSheet
+        visible={showDatePicker}
+        title="Select Date"
+        value={targetDate}
+        onCancel={() => setShowDatePicker(false)}
+        onConfirm={(val) => {
+          setTargetDate(val);
+          setShowDatePicker(false);
+        }}
+      />
+
+      <TimePickerSheet
+        visible={showTimePicker}
+        title="Reminder Time"
+        value={time}
+        onCancel={() => setShowTimePicker(false)}
+        onConfirm={(val) => {
+          setTime(val);
+          setShowTimePicker(false);
+        }}
+      />
+
       <ConfirmationSheet
         visible={showDeleteConfirm}
         title="Delete Bookmark?"
-        message="Are you sure you want to delete this bookmark? This action cannot be undone."
+        message="This bookmark and its scheduled reminder will be removed."
         confirmLabel="Delete"
         onConfirm={executeDelete}
         onCancel={() => setShowDeleteConfirm(false)}
       />
-    </>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: { flex: 1 },
+  screen: {
     flex: 1,
     backgroundColor: colors.bg,
-    padding: spacing.lg,
   },
-  header: {
-    marginBottom: spacing.lg,
+  content: {
+    padding: spacing.base,
+    paddingBottom: spacing.xxxl,
   },
-  dateBtn: {
+  headerCard: {
     backgroundColor: colors.card,
-    padding: 14,
-    borderRadius: 12,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+    marginBottom: spacing.sm,
+    textAlign: 'left',
+  },
+  dateBtn: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.cardElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   dateBtnText: {
+    flex: 1,
     color: colors.textPrimary,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  fieldLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
   },
   input: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 14,
+    backgroundColor: colors.cardElevated,
+    borderRadius: 10,
+    padding: spacing.md,
     color: colors.textPrimary,
-    fontSize: 16,
-    marginBottom: spacing.lg,
+    fontSize: 15,
     borderWidth: 1,
     borderColor: colors.border,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 82,
     textAlignVertical: 'top',
   },
-  recurrenceRow: {
-    marginBottom: spacing.lg,
+  recurrenceContent: {
+    gap: 8,
+    paddingRight: spacing.base,
   },
   chip: {
-    backgroundColor: colors.card,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    backgroundColor: colors.cardElevated,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
   chipActive: {
-    backgroundColor: colors.accent,
+    backgroundColor: `${colors.accent}24`,
     borderColor: colors.accent,
   },
   chipText: {
     color: colors.textSecondary,
+    fontSize: 13,
     fontWeight: '600',
   },
   chipTextActive: {
-    color: '#fff',
+    color: colors.accent,
   },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
-    backgroundColor: colors.card,
-    padding: 14,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: spacing.md,
+  },
+  switchCopy: {
+    flex: 1,
   },
   switchLabel: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    fontWeight: '700',
+  },
+  switchHint: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  timeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  timeCopy: {
+    flex: 1,
+  },
+  timeLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  timeText: {
     fontSize: 16,
     color: colors.textPrimary,
+    fontWeight: '700',
+    marginTop: 2,
+    fontVariant: ['tabular-nums'],
   },
   footer: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
+    marginTop: spacing.sm,
   },
   btn: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 12,
   },
   saveBtn: {
     backgroundColor: colors.accent,
   },
   saveBtnText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
   deleteBtn: {
-    backgroundColor: 'rgba(239,68,68,0.15)',
+    backgroundColor: `${colors.danger}18`,
+    borderWidth: 1,
+    borderColor: `${colors.danger}44`,
   },
   deleteBtnText: {
     color: colors.danger,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
+  },
+  btnDisabled: {
+    opacity: 0.4,
   },
 });

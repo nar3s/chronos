@@ -1,37 +1,105 @@
-import { StatCard } from "@/src/components/molecules/StatCard";
-import type { NutritionLog, SleepLog } from "@/src/domain/types/gym";
-import { useHabitStore } from "@/src/store/habitStore";
-import { colors } from "@/src/theme/colors";
-import { getToday } from "@/src/utils/dates";
-import { formatProtein, minutesToHHMM } from "@/src/utils/formatters";
-import { router } from "expo-router";
-import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StatCard } from '@/src/components/molecules/StatCard';
+import {
+  SLEEP_TARGET_MIN,
+  STUDY_DAILY_TARGET_MIN,
+} from '@/src/domain/constants/dashboard';
+import type { NutritionLog, SleepLog } from '@/src/domain/types/gym';
+import { colors } from '@/src/theme/colors';
+import {
+  formatBedtime,
+  formatProtein,
+  minutesToHHMM,
+} from '@/src/utils/formatters';
+import { router } from 'expo-router';
+import React from 'react';
+import { StyleSheet, View } from 'react-native';
 
-const CELL_HEIGHT = 88;
+const CELL_HEIGHT = 130;
 
 interface Props {
   nutrition: NutritionLog | null;
   sleep: SleepLog | null;
   studyMinutes: number;
+  studyYesterdayMinutes: number;
+  habitsDoneToday: number;
+  habitsDoneYesterday: number;
+  totalHabits: number;
+  proteinYesterdayGrams: number;
+  sleepYesterdayMinutes: number;
 }
 
-export function QuickStatsRow({ nutrition, sleep, studyMinutes }: Props) {
-  const habits = useHabitStore((s) => s.habits);
-  const allLogs = useHabitStore((s) => s.logs);
-  const today = getToday();
-  const done = allLogs.filter((l) => l.date === today).length;
-  const total = habits.length;
+type Delta = { direction: 'up' | 'down' | 'flat'; label: string };
 
-  const proteinValue = nutrition ? formatProtein(nutrition.proteinGrams) : "--";
-  const proteinUnit = nutrition ? `of ${nutrition.targetGrams}g` : "";
+function minutesDelta(today: number, yesterday: number, unit = 'm'): Delta | undefined {
+  if (yesterday === 0 && today === 0) return undefined;
+  const diff = today - yesterday;
+  if (diff === 0) return { direction: 'flat', label: 'same as yesterday' };
+  const abs = Math.abs(diff);
+  const label =
+    unit === 'm' && abs >= 60
+      ? `${minutesToHHMM(abs)} vs yesterday`
+      : `${abs}${unit} vs yesterday`;
+  return { direction: diff > 0 ? 'up' : 'down', label };
+}
 
-  const sleepValue = sleep ? minutesToHHMM(sleep.durationMinutes) : "--";
+export function QuickStatsRow({
+  nutrition,
+  sleep,
+  studyMinutes,
+  studyYesterdayMinutes,
+  habitsDoneToday,
+  habitsDoneYesterday,
+  totalHabits,
+  proteinYesterdayGrams,
+  sleepYesterdayMinutes,
+}: Props) {
+  const proteinToday = nutrition?.proteinGrams ?? 0;
+
+  const sleepToday = sleep?.durationMinutes ?? 0;
+
+  const proteinValue = nutrition ? formatProtein(nutrition.proteinGrams) : '--';
+  const proteinUnit = nutrition ? `of ${nutrition.targetGrams}g` : '';
+
+  const sleepValue = sleep ? minutesToHHMM(sleep.durationMinutes) : '--';
   const sleepUnit = sleep
-    ? `${formatBed(sleep.bedtime)} → ${formatWake(sleep.wakeTime)}`
-    : "";
+    ? `${formatBedtime(sleep.bedtime)} / ${formatBedtime(sleep.wakeTime)}`
+    : '';
 
   const studyValue = minutesToHHMM(studyMinutes);
+
+  const studyProgress = studyMinutes / STUDY_DAILY_TARGET_MIN;
+  const habitsProgress = totalHabits > 0 ? habitsDoneToday / totalHabits : undefined;
+  const proteinProgress =
+    nutrition && nutrition.targetGrams > 0
+      ? nutrition.proteinGrams / nutrition.targetGrams
+      : undefined;
+  const sleepProgress = sleep ? sleep.durationMinutes / SLEEP_TARGET_MIN : undefined;
+
+  const studyDelta = minutesDelta(studyMinutes, studyYesterdayMinutes);
+  const proteinDelta =
+    nutrition || proteinYesterdayGrams > 0
+      ? (() => {
+          const diff = proteinToday - proteinYesterdayGrams;
+          if (diff === 0 && proteinToday === 0) return undefined;
+          if (diff === 0) return { direction: 'flat' as const, label: 'same as yesterday' };
+          return {
+            direction: diff > 0 ? ('up' as const) : ('down' as const),
+            label: `${Math.abs(Math.round(diff))}g vs yesterday`,
+          };
+        })()
+      : undefined;
+  const sleepDelta = minutesDelta(sleepToday, sleepYesterdayMinutes);
+  const habitsDelta =
+    totalHabits > 0 && (habitsDoneToday > 0 || habitsDoneYesterday > 0)
+      ? (() => {
+          const diff = habitsDoneToday - habitsDoneYesterday;
+          if (diff === 0) return { direction: 'flat' as const, label: 'same as yesterday' };
+          return {
+            direction: diff > 0 ? ('up' as const) : ('down' as const),
+            label: `${Math.abs(diff)} vs yesterday`,
+          };
+        })()
+      : undefined;
 
   return (
     <View style={styles.grid}>
@@ -42,24 +110,33 @@ export function QuickStatsRow({ nutrition, sleep, studyMinutes }: Props) {
             value={studyValue}
             unit="today"
             valueColor={colors.accent}
+            progress={studyProgress}
+            delta={studyDelta}
+            onPress={() => router.push('/(tabs)/study' as any)}
             style={styles.card}
           />
         </View>
-        <TouchableOpacity
-          style={styles.cell}
-          onPress={() => router.push("/more/habits" as any)}
-          activeOpacity={0.75}
-        >
+        <View style={styles.cell}>
           <StatCard
             label="HABITS"
-            value={total > 0 ? `${done}/${total}` : "--"}
+            value={totalHabits > 0 ? `${habitsDoneToday}/${totalHabits}` : '--'}
             unit="today"
             valueColor={
-              total > 0 && done === total ? colors.success : colors.textPrimary
+              totalHabits > 0 && habitsDoneToday === totalHabits
+                ? colors.success
+                : colors.textPrimary
             }
+            progress={habitsProgress}
+            progressColor={
+              totalHabits > 0 && habitsDoneToday === totalHabits
+                ? colors.success
+                : colors.accent
+            }
+            delta={habitsDelta}
+            onPress={() => router.push('/more/habits' as any)}
             style={styles.card}
           />
-        </TouchableOpacity>
+        </View>
       </View>
       <View style={styles.row}>
         <View style={styles.cell}>
@@ -68,6 +145,10 @@ export function QuickStatsRow({ nutrition, sleep, studyMinutes }: Props) {
             value={proteinValue}
             unit={proteinUnit}
             valueColor={colors.warning}
+            progress={proteinProgress}
+            delta={proteinDelta}
+            emptyActionLabel="Log protein"
+            onPress={() => router.push('/modals/log-workout' as any)}
             style={styles.card}
           />
         </View>
@@ -76,6 +157,10 @@ export function QuickStatsRow({ nutrition, sleep, studyMinutes }: Props) {
             label="SLEEP"
             value={sleepValue}
             unit={sleepUnit}
+            progress={sleepProgress}
+            delta={sleepDelta}
+            emptyActionLabel="Log sleep"
+            onPress={() => router.push('/modals/log-workout' as any)}
             style={styles.card}
           />
         </View>
@@ -84,26 +169,14 @@ export function QuickStatsRow({ nutrition, sleep, studyMinutes }: Props) {
   );
 }
 
-function formatBed(t: string): string {
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  return `${hour % 12 || 12}:${m} ${hour >= 12 ? "PM" : "AM"}`;
-}
-
-function formatWake(t: string): string {
-  const [h, m] = t.split(":");
-  const hour = parseInt(h, 10);
-  return `${hour % 12 || 12}:${m}`;
-}
-
 const styles = StyleSheet.create({
   grid: {
-    gap: 10,
+    gap: 12,
   },
   row: {
-    flexDirection: "row",
-    gap: 10,
-    height: CELL_HEIGHT,
+    flexDirection: 'row',
+    gap: 12,
+    minHeight: CELL_HEIGHT,
   },
   cell: {
     flex: 1,

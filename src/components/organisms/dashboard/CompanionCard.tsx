@@ -8,66 +8,36 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useStudyStore } from '@/src/store/studyStore';
-import { useGymStore } from '@/src/store/gymStore';
-import { useNutritionStore } from '@/src/store/nutritionStore';
-import { useSettingsStore } from '@/src/store/settingsStore';
-import { useMemoryStore } from '@/src/store/memoryStore';
-import { generateInsight, type SessionNote } from '@/src/services/aiCompanion';
-import { getToday } from '@/src/utils/dates';
+import { Ionicons } from '@expo/vector-icons';
+import type { Reflection } from '@/src/store/memoryStore';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
-export function CompanionCard() {
-  const study = useStudyStore();
-  const gym = useGymStore();
-  const nutrition = useNutritionStore();
-  const settings = useSettingsStore();
-  const memory = useMemoryStore();
+interface Props {
+  cleanGlyphs?: boolean;
+  hasApiKey: boolean;
+  todayInsight: string | null;
+  recentReflections: Reflection[];
+  onGenerateInsight: () => Promise<void>;
+  onAddReflection: (text: string) => void;
+}
 
+export function CompanionCard({
+  hasApiKey,
+  todayInsight,
+  recentReflections,
+  onGenerateInsight,
+  onAddReflection,
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reflection, setReflection] = useState('');
-
-  const today = getToday();
-  const todayInsight = memory.dailyInsight?.date === today ? memory.dailyInsight.text : null;
-  const hasApiKey = !!settings.llmApiKey.trim();
-  const recentReflections = memory.getRecentReflections(3);
 
   async function handleGenerate() {
     setLoading(true);
     setError(null);
     try {
-      const weeklyStats = study.getWeeklyStats();
-      const sleepLog = gym.getTodaySleepLog();
-      const todayNutrition = nutrition.getTodayLog();
-      const todaySession = gym.getTodaySession();
-
-      const recentSessionNotes: SessionNote[] = study
-        .getRecentSessions(20)
-        .filter((s) => s.notes && s.notes.trim().length > 0)
-        .slice(0, 5)
-        .map((s) => ({
-          date: s.date,
-          topic: s.topic,
-          subtopic: s.subtopic,
-          notes: s.notes!,
-        }));
-
-      const text = await generateInsight(settings.llmProvider, settings.llmApiKey, {
-        studyMinutesToday: study.getTodayMinutes(),
-        studyStreak: study.getMorningBlockStreak(),
-        weeklyStudyMinutes: weeklyStats.totalMinutes,
-        weeklyStudyGoalMinutes: settings.goals.weeklyStudyHours * 60,
-        gymCompletedToday: todaySession?.completed ?? false,
-        sleepHours: sleepLog ? Math.round((sleepLog.durationMinutes / 60) * 10) / 10 : null,
-        proteinGrams: todayNutrition?.proteinGrams ?? null,
-        dailyProteinGoal: settings.goals.dailyProteinGrams,
-        recentSessionNotes,
-        recentReflections: memory.getRecentReflections(3),
-      });
-
-      memory.setDailyInsight(text);
+      await onGenerateInsight();
     } catch (e: any) {
       setError(e.message ?? 'Failed to generate insight');
     } finally {
@@ -77,16 +47,19 @@ export function CompanionCard() {
 
   function handleAddReflection() {
     if (!reflection.trim()) return;
-    memory.addReflection(reflection);
+    onAddReflection(reflection);
     setReflection('');
   }
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>✦ AI Companion</Text>
+        <View style={styles.titleRow}>
+          <Ionicons name="sparkles-outline" size={14} color={colors.accent} />
+          <Text style={styles.title}>AI Companion</Text>
+        </View>
         <TouchableOpacity onPress={() => router.push('/settings')} hitSlop={8}>
-          <Text style={styles.gearIcon}>⚙</Text>
+          <Ionicons name="settings-outline" size={18} color={colors.textMuted} />
         </TouchableOpacity>
       </View>
 
@@ -99,7 +72,7 @@ export function CompanionCard() {
           <Text style={styles.setupText}>
             Get personalized daily insights. Add your Gemini or OpenAI key in Settings.
           </Text>
-          <Text style={styles.setupCta}>Set up →</Text>
+          <Text style={styles.setupCta}>Set up</Text>
         </TouchableOpacity>
       ) : todayInsight ? (
         <View style={styles.insightBox}>
@@ -112,7 +85,10 @@ export function CompanionCard() {
             {loading ? (
               <ActivityIndicator size="small" color={colors.accent} />
             ) : (
-              <Text style={styles.refreshText}>↻ Refresh</Text>
+              <View style={styles.refreshContent}>
+                <Ionicons name="refresh" size={13} color={colors.accent} />
+                <Text style={styles.refreshText}>Refresh</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -126,7 +102,10 @@ export function CompanionCard() {
           {loading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Text style={styles.generateBtnText}>✦ Generate today's insight</Text>
+            <View style={styles.generateContent}>
+              <Ionicons name="sparkles-outline" size={16} color="#fff" />
+              <Text style={styles.generateBtnText}>Generate today's insight</Text>
+            </View>
           )}
         </TouchableOpacity>
       )}
@@ -171,8 +150,8 @@ export function CompanionCard() {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: spacing.base,
+    borderRadius: 14,
+    padding: spacing.md,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: `${colors.accent}30`,
@@ -183,16 +162,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
     fontSize: 13,
     fontWeight: '700',
     color: colors.accent,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-  },
-  gearIcon: {
-    fontSize: 18,
-    color: colors.textMuted,
   },
   setupPrompt: {
     backgroundColor: colors.cardElevated,
@@ -227,6 +207,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
     alignSelf: 'flex-end',
   },
+  refreshContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   refreshText: {
     fontSize: 12,
     color: colors.accent,
@@ -241,6 +226,11 @@ const styles = StyleSheet.create({
   },
   generateBtnLoading: {
     opacity: 0.7,
+  },
+  generateContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
   },
   generateBtnText: {
     fontSize: 14,

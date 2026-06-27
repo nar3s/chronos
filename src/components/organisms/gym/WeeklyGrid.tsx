@@ -2,6 +2,8 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { WeekDotGrid } from '@/src/components/molecules/WeekDotGrid';
 import { SectionHeader } from '@/src/components/molecules/SectionHeader';
+import { colors } from '@/src/theme/colors';
+import { spacing } from '@/src/theme/spacing';
 
 interface DayCell {
   day: string;
@@ -20,7 +22,20 @@ export function WeeklyGrid({ days, onSelectDay }: Props) {
   return (
     <View>
       <SectionHeader title="This Week" />
-      <WeekDotGrid days={days} onSelectDay={onSelectDay} />
+      <View style={styles.card}>
+        <WeekDotGrid days={days} onSelectDay={onSelectDay} />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+});

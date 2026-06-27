@@ -42,9 +42,11 @@ const styles = StyleSheet.create({
   },
   card: {
     flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   label: {
     fontSize: 11,

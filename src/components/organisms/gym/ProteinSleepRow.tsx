@@ -1,7 +1,10 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { CircularProgress } from '@/src/components/atoms/CircularProgress';
+import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { colors } from '@/src/theme/colors';
+import { spacing } from '@/src/theme/spacing';
 import { minutesToHHMM } from '@/src/utils/formatters';
 import type { NutritionLog, SleepLog } from '@/src/domain/types/gym';
 
@@ -19,25 +22,48 @@ export function ProteinSleepRow({ nutrition, sleep }: Props) {
   const lateBy = sleep ? getOverMinutes(sleep.bedtime, '23:45') : 0;
 
   return (
-    <View style={styles.row}>
-      <View style={[styles.card, styles.center]}>
-        <Text style={styles.label}>PROTEIN</Text>
-        <CircularProgress
-          value={protein}
-          max={proteinTarget}
-          size={80}
-          color={colors.warning}
-          unit={`of ${proteinTarget}g`}
-        />
-      </View>
+    <View>
+      <SectionHeader title="Recovery" />
+      <View style={styles.row}>
+        <View
+          style={[
+            styles.card,
+            styles.center,
+            protein >= proteinTarget * 0.8 ? styles.cardProteinGood : styles.cardProteinOpen,
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.label}>PROTEIN</Text>
+            <View style={[styles.iconChip, { backgroundColor: `${colors.warning}18` }]}>
+              <Ionicons name="restaurant-outline" size={15} color={colors.warning} />
+            </View>
+          </View>
+          <CircularProgress
+            value={protein}
+            max={proteinTarget}
+            size={64}
+            color={colors.warning}
+            unit={`of ${proteinTarget}g`}
+          />
+        </View>
 
-      <View style={styles.card}>
-        <Text style={styles.label}>SLEEP</Text>
-        <Text style={styles.sleepValue}>{sleepDisplay}</Text>
-        <Text style={styles.bedtime}>Bed: {bedLabel}</Text>
-        {lateBy > 0 ? (
-          <Text style={styles.late}>{lateBy} min past target</Text>
-        ) : null}
+        <View style={[styles.card, sleep ? styles.cardSleepLogged : undefined]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.label}>SLEEP</Text>
+            <View style={[styles.iconChip, { backgroundColor: `${colors.purple}18` }]}>
+              <Ionicons name="moon-outline" size={15} color={colors.purple} />
+            </View>
+          </View>
+          <Text style={styles.sleepValue}>{sleepDisplay}</Text>
+          <Text style={styles.bedtime}>Bed: {bedLabel}</Text>
+          {lateBy > 0 ? (
+            <Text style={styles.late}>{lateBy} min past target</Text>
+          ) : (
+            <Text style={styles.onTarget}>
+              {sleep ? 'On target' : 'No sleep logged'}
+            </Text>
+          )}
+        </View>
       </View>
     </View>
   );
@@ -62,13 +88,24 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   card: {
     flex: 1,
     backgroundColor: colors.card,
     borderRadius: 14,
-    padding: 16,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  cardProteinOpen: {
+    borderColor: `${colors.warning}33`,
+  },
+  cardProteinGood: {
+    borderColor: `${colors.success}55`,
+  },
+  cardSleepLogged: {
+    borderColor: `${colors.purple}55`,
   },
   center: {
     alignItems: 'center',
@@ -76,25 +113,47 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 11,
     color: colors.textMuted,
-    fontWeight: '500',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 10,
+    letterSpacing: 0.8,
+  },
+  cardHeader: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  iconChip: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   sleepValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
     fontVariant: ['tabular-nums'],
+    letterSpacing: -0.3,
   },
   bedtime: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: 3,
   },
   late: {
-    fontSize: 12,
+    fontSize: 11,
     color: colors.danger,
     marginTop: 2,
+  },
+  onTarget: {
+    fontSize: 11,
+    color: colors.success,
+    marginTop: 2,
+    fontWeight: '600',
   },
 });

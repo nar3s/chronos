@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Badge } from '@/src/components/atoms/Badge';
 import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { colors } from '@/src/theme/colors';
@@ -30,7 +31,9 @@ export function TodayPlanCard({ items, onToggle, onDelete }: Props) {
                 style={[styles.checkbox, item.completed && styles.checkboxDone]}
                 onPress={() => onToggle(item.id)}
               >
-                {item.completed && <Text style={styles.checkmark}>✓</Text>}
+                {item.completed ? (
+                  <Ionicons name="checkmark" size={14} color={colors.textPrimary} />
+                ) : null}
               </TouchableOpacity>
               <View style={styles.info}>
                 <View style={styles.topRow}>
@@ -49,7 +52,7 @@ export function TodayPlanCard({ items, onToggle, onDelete }: Props) {
                 onPress={() => onDelete(item.id)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
-                <Text style={styles.deleteText}>✕</Text>
+                <Ionicons name="close" size={13} color={colors.danger} />
               </TouchableOpacity>
             </View>
           );
@@ -65,6 +68,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   row: {
     flexDirection: 'row',
@@ -88,11 +93,6 @@ const styles = StyleSheet.create({
   checkboxDone: {
     backgroundColor: colors.success,
     borderColor: colors.success,
-  },
-  checkmark: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
   },
   info: {
     flex: 1,
@@ -125,10 +125,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239,68,68,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  deleteText: {
-    fontSize: 11,
-    color: colors.danger,
-    fontWeight: '600',
   },
 });

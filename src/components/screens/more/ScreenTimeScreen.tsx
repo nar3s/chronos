@@ -4,10 +4,11 @@ import {
   ActivityIndicator, AppState, Modal, Pressable, TextInput,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
+import { ScreenHeader } from '@/src/components/molecules/ScreenHeader';
 import { ProgressBar } from '@/src/components/atoms/ProgressBar';
 import { useScreenTime } from '@/src/hooks/useScreenTime';
 import { useSettingsStore } from '@/src/store/settingsStore';
@@ -87,13 +88,7 @@ export function ScreenTimeScreen() {
   if (!isSupported) {
     return (
       <ScreenTemplate>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Screen Time</Text>
-          <View style={{ width: 32 }} />
-        </View>
+        <ScreenHeader title="Screen Time" />
         <View style={styles.center}>
           <Ionicons name="phone-portrait-outline" size={48} color={colors.textMuted} />
           <Text style={styles.errorTitle}>Not Supported</Text>
@@ -105,15 +100,14 @@ export function ScreenTimeScreen() {
 
   return (
     <ScreenTemplate>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Screen Time</Text>
-        <TouchableOpacity onPress={refresh} style={styles.refreshBtn}>
-          <Ionicons name="refresh" size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Screen Time"
+        right={
+          <TouchableOpacity onPress={refresh} style={styles.refreshBtn}>
+            <Ionicons name="refresh" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
+        }
+      />
 
       {isLoading && !data ? (
         <View style={styles.center}>
@@ -162,10 +156,20 @@ export function ScreenTimeScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.heroCard}>
+              <LinearGradient
+                colors={['#1a1f2e', '#15171f', '#101218']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.heroCard}
+              >
                 <Text style={styles.heroLabel}>Total Screen Time</Text>
-                <Text style={styles.heroValue}>{minutesToHHMM(Math.floor(data.totalMs / 60000))}</Text>
-              </View>
+                <View style={styles.heroRow}>
+                  <Text style={styles.heroValue}>{minutesToHHMM(Math.floor(data.totalMs / 60000))}</Text>
+                  <View style={styles.heroIcon}>
+                    <Ionicons name="phone-portrait-outline" size={20} color={colors.warning} />
+                  </View>
+                </View>
+              </LinearGradient>
 
               <Text style={styles.sectionTitle}>App Usage</Text>
 
@@ -270,7 +274,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.md,
   },
   backBtn: { padding: 4 },
   refreshBtn: { padding: 4 },
@@ -279,7 +283,7 @@ const styles = StyleSheet.create({
   errorTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginTop: 16, marginBottom: 8 },
   errorText: { fontSize: 14, color: colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 },
   permissionCard: {
-    backgroundColor: colors.card, borderRadius: 20, padding: 24,
+    backgroundColor: colors.card, borderRadius: 14, padding: spacing.md,
     alignItems: 'center', borderWidth: 1, borderColor: colors.border, marginTop: spacing.xl,
   },
   permissionTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary, marginBottom: 12 },
@@ -302,13 +306,24 @@ const styles = StyleSheet.create({
   navBtn: { padding: 8, backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border },
   dateText: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
   heroCard: {
-    backgroundColor: colors.card, borderRadius: 20, padding: 24,
-    alignItems: 'center', marginBottom: spacing.xl, borderWidth: 1, borderColor: colors.border,
+    borderRadius: 20, padding: spacing.lg,
+    marginBottom: spacing.lg, borderWidth: 1, borderColor: `${colors.accent}1A`,
   },
-  heroLabel: { fontSize: 14, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 },
-  heroValue: { fontSize: 42, fontWeight: '800', color: colors.textPrimary },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md },
-  listCard: { backgroundColor: colors.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: colors.border },
+  heroLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm },
+  heroRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  heroValue: { fontSize: 36, fontWeight: '800', color: colors.textPrimary },
+  heroIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sectionTitle: { fontSize: 11, fontWeight: '700', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: spacing.sm },
+  listCard: { backgroundColor: colors.card, borderRadius: 14, padding: spacing.md, borderWidth: 1, borderColor: colors.border },
   emptyText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', paddingVertical: 20 },
   appRow: { paddingVertical: 14 },
   appRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },

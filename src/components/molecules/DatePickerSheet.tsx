@@ -1,19 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { BottomSheet } from '@/src/components/molecules/BottomSheet';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
-const ITEM_H = 52;
+const ITEM_H = 42;
 const VISIBLE = 5;
 const DRUM_H = ITEM_H * VISIBLE;
 const PAD = ITEM_H * 2;
@@ -26,7 +25,7 @@ function getDaysInMonth(year: number, monthIndex: number) {
   return new Date(year, monthIndex + 1, 0).getDate();
 }
 
-// ─── Scroll drum ───────────────────────────────────────────────────────────────
+// Scroll drum
 
 interface DrumProps {
   items: string[];
@@ -62,7 +61,7 @@ function ScrollDrum({ items, initialIndex, onChange, width = 72 }: DrumProps) {
   );
 }
 
-// ─── DatePickerSheet ───────────────────────────────────────────────────────────
+// DatePickerSheet
 
 interface Props {
   visible: boolean;
@@ -101,11 +100,8 @@ export function DatePickerSheet({ visible, title, value, onCancel, onConfirm }: 
   const displayStr = previewDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onCancel}>
-      <View style={styles.overlay}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
+    <BottomSheet visible={visible} onClose={onCancel}>
+      <View style={styles.body}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.preview}>{displayStr}</Text>
 
@@ -115,21 +111,21 @@ export function DatePickerSheet({ visible, title, value, onCancel, onConfirm }: 
               items={MONTHS}
               initialIndex={monthIndex}
               onChange={setMonthIndex}
-              width={90}
+              width={78}
             />
             <ScrollDrum
               key={`d-${sessionKey}-${daysInMonth}`} // re-mount if days count changes so we don't scroll out of bounds
               items={DAYS}
               initialIndex={safeDayIndex}
               onChange={setDayIndex}
-              width={72}
+              width={62}
             />
             <ScrollDrum
               key={`y-${sessionKey}`}
               items={YEARS}
               initialIndex={yearIndex}
               onChange={setYearIndex}
-              width={90}
+              width={78}
             />
           </View>
 
@@ -146,60 +142,41 @@ export function DatePickerSheet({ visible, title, value, onCancel, onConfirm }: 
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15,15,15,0.75)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+  body: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xl,
-    borderTopWidth: 1,
-    borderColor: '#242424',
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: '#3A3A3A',
-    marginBottom: spacing.base,
+    paddingBottom: spacing.lg,
   },
   title: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: colors.textPrimary,
     letterSpacing: -0.2,
   },
   preview: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginTop: 6,
-    marginBottom: 4,
+    marginTop: 4,
+    marginBottom: 2,
+    letterSpacing: -0.3,
   },
   controls: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    marginTop: spacing.base,
+    gap: 8,
+    marginTop: spacing.sm,
   },
   drumWrapper: {
     height: DRUM_H,
     overflow: 'hidden',
-    borderRadius: 14,
-    backgroundColor: '#111111',
+    borderRadius: 12,
+    backgroundColor: colors.cardElevated,
     borderWidth: 1,
     borderColor: colors.border,
   },
@@ -220,14 +197,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   drumText: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
   },
   actions: {
     flexDirection: 'row',
     gap: spacing.sm,
-    marginTop: spacing.xl,
+    marginTop: spacing.lg,
   },
   cancelButton: {
     flex: 1,
@@ -235,7 +212,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cardElevated,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   cancelText: {
@@ -247,7 +224,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     backgroundColor: colors.accent,
-    paddingVertical: 13,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   confirmText: {

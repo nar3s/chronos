@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/src/theme/colors';
 
 interface Props {
@@ -14,7 +15,7 @@ interface Props {
 }
 
 export function ExerciseCheckRow({ name, sets, reps, weightKg, lastWeightKg, done, onToggle, isFirst }: Props) {
-  const setsLabel = `${sets}×${reps}`;
+  const setsLabel = `${sets}x${reps}`;
   const weightLabel = weightKg ? `${weightKg}kg` : null;
   const lastLabel = !weightKg && lastWeightKg ? `last: ${lastWeightKg}kg` : null;
 
@@ -25,7 +26,7 @@ export function ExerciseCheckRow({ name, sets, reps, weightKg, lastWeightKg, don
       activeOpacity={0.7}
     >
       <View style={[styles.checkbox, done && styles.checkboxDone]}>
-        {done ? <Text style={styles.checkmark}>✓</Text> : null}
+        {done ? <Ionicons name="checkmark" size={13} color={colors.textPrimary} /> : null}
       </View>
       <Text style={[styles.name, done && styles.nameDone]}>{name}</Text>
       <View style={styles.meta}>
@@ -45,19 +46,19 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     gap: 10,
   },
   border: {
     borderTopWidth: 1,
-    borderTopColor: '#2A2A2A',
+    borderTopColor: colors.border,
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     borderWidth: 1.5,
-    borderColor: '#666',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -65,11 +66,6 @@ const styles = StyleSheet.create({
   checkboxDone: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
-  },
-  checkmark: {
-    fontSize: 11,
-    color: '#fff',
-    fontWeight: '700',
   },
   name: {
     flex: 1,

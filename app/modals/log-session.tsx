@@ -10,6 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useStudyStore } from '@/src/store/studyStore';
 import { useStudyPlanStore } from '@/src/store/studyPlanStore';
 import { useSnapshotStore } from '@/src/store/snapshotStore';
@@ -20,7 +21,13 @@ import { DEFAULT_TOPICS } from '@/src/domain/constants/topics';
 import { parseISO, format } from 'date-fns';
 
 export default function LogSessionModal() {
-  const { sessionId, date: initialDate, topic: initialTopic, subtopic: initialSubtopic, prefillMinutes } = useLocalSearchParams<{
+  const {
+    sessionId,
+    date: initialDate,
+    topic: initialTopic,
+    subtopic: initialSubtopic,
+    prefillMinutes,
+  } = useLocalSearchParams<{
     sessionId?: string;
     date?: string;
     topic?: string;
@@ -40,15 +47,21 @@ export default function LogSessionModal() {
     [sessionId, sessions]
   );
 
-  const defaultIds = DEFAULT_TOPICS.map((topic) => topic.id);
+  const defaultIds = DEFAULT_TOPICS.map((item) => item.id);
   const customTopics = [
-    ...new Set(sessions.map((session) => session.topic).filter((topic) => !defaultIds.includes(topic))),
+    ...new Set(
+      sessions
+        .map((session) => session.topic)
+        .filter((item) => !defaultIds.includes(item))
+    ),
   ];
 
   const [topic, setTopic] = useState(initialTopic ?? editingSession?.topic ?? '');
   const [customTopicInput, setCustomTopicInput] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
-  const [subtopic, setSubtopic] = useState(initialSubtopic ?? editingSession?.subtopic ?? '');
+  const [subtopic, setSubtopic] = useState(
+    initialSubtopic ?? editingSession?.subtopic ?? ''
+  );
   const [minutes, setMinutes] = useState(
     editingSession ? String(editingSession.durationMinutes) : prefillMinutes ?? ''
   );
@@ -73,7 +86,9 @@ export default function LogSessionModal() {
 
   function handleSave() {
     const durationMinutes = parseInt(minutes, 10);
-    if (!topic || !subtopic.trim() || Number.isNaN(durationMinutes) || durationMinutes <= 0) return;
+    if (!topic || !subtopic.trim() || Number.isNaN(durationMinutes) || durationMinutes <= 0) {
+      return;
+    }
 
     if (editingSession) {
       updateSession(editingSession.id, {
@@ -92,7 +107,6 @@ export default function LogSessionModal() {
         notes: notes.trim() || undefined,
       });
 
-      // Mark morning block started on first session of today
       if (sessionDate === getToday()) {
         const todaySnap = snapshot.getTodaySnapshot();
         if (!todaySnap?.morningBlockStarted) {
@@ -106,14 +120,17 @@ export default function LogSessionModal() {
         }
       }
 
-      // Auto-complete matching planned item
       const planToComplete = planItems.find(
-        (i) => i.date === sessionDate && i.topic === topic && i.subtopic.toLowerCase() === subtopic.trim().toLowerCase() && !i.completed
+        (item) =>
+          item.date === sessionDate &&
+          item.topic === topic &&
+          item.subtopic.toLowerCase() === subtopic.trim().toLowerCase() &&
+          !item.completed
       );
       if (planToComplete) {
         setPlanItems({
-          items: planItems.map((i) =>
-            i.id === planToComplete.id ? { ...i, completed: true } : i
+          items: planItems.map((item) =>
+            item.id === planToComplete.id ? { ...item, completed: true } : item
           ),
         });
       }
@@ -131,6 +148,8 @@ export default function LogSessionModal() {
     })),
   ];
 
+  const canSave = !!topic && !!subtopic.trim() && parseInt(minutes, 10) > 0;
+
   return (
     <KeyboardAvoidingView
       style={styles.flex}
@@ -141,98 +160,113 @@ export default function LogSessionModal() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.modalTitle}>{editingSession ? 'Edit Session' : 'Log Session'}</Text>
-
-        {isDateLocked && (
-          <>
-            <Text style={styles.fieldLabel}>Date</Text>
+        <View style={styles.headerCard}>
+          <Text style={styles.kicker}>STUDY SESSION</Text>
+          <Text style={styles.modalTitle}>
+            {editingSession ? 'Edit session' : 'Log session'}
+          </Text>
+          {isDateLocked ? (
             <View style={styles.lockedDateContainer}>
+              <Ionicons name="lock-closed-outline" size={15} color={colors.textSecondary} />
               <Text style={styles.lockedDateText}>
                 {format(parseISO(sessionDate), 'EEEE, MMMM d, yyyy')}
               </Text>
-              <Text style={styles.lockedIcon}>🔒</Text>
             </View>
-          </>
-        )}
-
-        <Text style={styles.fieldLabel}>Topic</Text>
-        <View style={styles.topicRow}>
-          {allTopics.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={[styles.topicChip, topic === item.id && styles.topicChipActive]}
-              onPress={() => handleSelectTopic(item.id)}
-            >
-              <Text style={[styles.topicLabel, topic === item.id && styles.topicLabelActive]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-          <TouchableOpacity
-            style={[styles.topicChip, styles.addTopicChip]}
-            onPress={() => setShowCustomInput(true)}
-          >
-            <Text style={styles.addTopicText}>+ New</Text>
-          </TouchableOpacity>
+          ) : null}
         </View>
 
-        {showCustomInput && (
-          <View style={styles.customTopicRow}>
-            <TextInput
-              style={[styles.input, styles.customTopicInput]}
-              value={customTopicInput}
-              onChangeText={setCustomTopicInput}
-              placeholder="e.g. Probability"
-              placeholderTextColor={colors.textMuted}
-              autoFocus
-              autoCapitalize="words"
-            />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Topic</Text>
+          <View style={styles.topicRow}>
+            {allTopics.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={[styles.topicChip, topic === item.id && styles.topicChipActive]}
+                onPress={() => handleSelectTopic(item.id)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.topicLabel, topic === item.id && styles.topicLabelActive]}>
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
             <TouchableOpacity
-              style={[styles.customTopicBtn, !customTopicInput.trim() && styles.btnDisabled]}
-              onPress={handleAddCustomTopic}
-              disabled={!customTopicInput.trim()}
+              style={[styles.topicChip, styles.addTopicChip]}
+              onPress={() => setShowCustomInput(true)}
+              activeOpacity={0.75}
             >
-              <Text style={styles.customTopicBtnText}>Add</Text>
+              <Ionicons name="add" size={13} color={colors.accent} />
+              <Text style={styles.addTopicText}>New</Text>
             </TouchableOpacity>
           </View>
-        )}
 
-        <Text style={styles.fieldLabel}>Subtopic</Text>
-        <TextInput
-          style={styles.input}
-          value={subtopic}
-          onChangeText={setSubtopic}
-          placeholder="e.g. Epsilon-Delta Proofs"
-          placeholderTextColor={colors.textMuted}
-        />
+          {showCustomInput ? (
+            <View style={styles.customTopicRow}>
+              <TextInput
+                style={[styles.input, styles.customTopicInput]}
+                value={customTopicInput}
+                onChangeText={setCustomTopicInput}
+                placeholder="e.g. Probability"
+                placeholderTextColor={colors.textMuted}
+                autoFocus
+                autoCapitalize="words"
+              />
+              <TouchableOpacity
+                style={[styles.customTopicBtn, !customTopicInput.trim() && styles.btnDisabled]}
+                onPress={handleAddCustomTopic}
+                disabled={!customTopicInput.trim()}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={15} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
 
-        <Text style={styles.fieldLabel}>Duration (minutes)</Text>
-        <TextInput
-          style={styles.input}
-          value={minutes}
-          onChangeText={setMinutes}
-          keyboardType="number-pad"
-          placeholder="e.g. 90"
-          placeholderTextColor={colors.textMuted}
-        />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Subtopic</Text>
+          <TextInput
+            style={styles.input}
+            value={subtopic}
+            onChangeText={setSubtopic}
+            placeholder="e.g. Epsilon-Delta Proofs"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
 
-        <Text style={styles.fieldLabel}>What did you study? (optional)</Text>
-        <TextInput
-          style={[styles.input, styles.notesInput]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Key concepts, problems solved, pages covered..."
-          placeholderTextColor={colors.textMuted}
-          multiline
-          numberOfLines={3}
-          textAlignVertical="top"
-        />
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Duration</Text>
+          <TextInput
+            style={styles.input}
+            value={minutes}
+            onChangeText={setMinutes}
+            keyboardType="number-pad"
+            placeholder="Minutes, e.g. 90"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Notes</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Key concepts, problems solved, pages covered..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+        </View>
 
         <TouchableOpacity
-          style={[styles.saveBtn, (!topic || !subtopic.trim()) && styles.btnDisabled]}
+          style={[styles.saveBtn, !canSave && styles.btnDisabled]}
           onPress={handleSave}
-          disabled={!topic || !subtopic.trim()}
+          disabled={!canSave}
+          activeOpacity={0.8}
         >
+          <Ionicons name="checkmark" size={16} color="#fff" />
           <Text style={styles.saveBtnText}>
             {editingSession ? 'Update Session' : 'Save Session'}
           </Text>
@@ -245,55 +279,92 @@ export default function LogSessionModal() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  content: { padding: spacing.base, paddingBottom: spacing.xxxl },
+  headerCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
   modalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     letterSpacing: -0.3,
+    textAlign: 'left',
   },
   lockedDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 8,
     backgroundColor: colors.cardElevated,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: colors.border,
   },
   lockedDateText: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 13,
     color: colors.textPrimary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
-  lockedIcon: {
-    fontSize: 16,
-    opacity: 0.5,
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
     marginBottom: spacing.sm,
-    marginTop: spacing.base,
     textTransform: 'uppercase',
-    letterSpacing: 0.4,
+    letterSpacing: 0.8,
   },
-  topicRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  topicRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   topicChip: {
-    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
   },
-  topicChipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  topicLabel: { fontSize: 13, color: colors.textSecondary, fontWeight: '500' },
-  topicLabelActive: { color: '#fff' },
+  topicChipActive: {
+    backgroundColor: `${colors.accent}24`,
+    borderColor: colors.accent,
+  },
+  topicLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  topicLabelActive: {
+    color: colors.accent,
+  },
   addTopicChip: {
     borderStyle: 'dashed',
     borderColor: colors.accent,
@@ -301,44 +372,46 @@ const styles = StyleSheet.create({
   addTopicText: {
     fontSize: 13,
     color: colors.accent,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   customTopicRow: {
     flexDirection: 'row',
     gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  customTopicInput: { flex: 1 },
+  customTopicInput: {
+    flex: 1,
+  },
   customTopicBtn: {
+    width: 42,
     backgroundColor: colors.accent,
     borderRadius: 10,
-    paddingHorizontal: 20,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  customTopicBtnText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
-  },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    padding: spacing.base,
+    padding: spacing.md,
     fontSize: 15,
     color: colors.textPrimary,
     borderWidth: 1,
     borderColor: colors.border,
   },
   notesInput: {
-    minHeight: 80,
-    paddingTop: spacing.md,
+    minHeight: 76,
+    paddingTop: spacing.sm,
+    textAlignVertical: 'top',
   },
   saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xl,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: spacing.sm,
   },
   btnDisabled: { opacity: 0.4 },
   saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },

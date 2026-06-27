@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { PlanDayData, PlanMonthStats } from '@/src/hooks/useStudyPlanCalendar';
 import { colors } from '@/src/theme/colors';
 
@@ -43,18 +44,18 @@ export function StudyPlanCalendar({ days, stats, monthLabel, onPrev, onNext, onD
       {/* Month navigation */}
       <View style={styles.navRow}>
         <TouchableOpacity onPress={onPrev} hitSlop={12}>
-          <Text style={styles.navArrow}>‹</Text>
+          <Ionicons name="chevron-back" size={18} color={colors.accent} />
         </TouchableOpacity>
         <Text style={styles.monthLabel}>{monthLabel}</Text>
         <TouchableOpacity onPress={onNext} hitSlop={12}>
-          <Text style={styles.navArrow}>›</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.accent} />
         </TouchableOpacity>
       </View>
 
       {stats.plannedSessions === 0 ? (
         <View style={styles.emptyCard}>
           <Text style={styles.emptyTitle}>No plan for this month</Text>
-          <Text style={styles.emptyText}>Use the 📋 Plan button to import a study schedule</Text>
+          <Text style={styles.emptyText}>Use the Plan button to import a study schedule</Text>
         </View>
       ) : (
         <>
@@ -130,8 +131,8 @@ export function StudyPlanCalendar({ days, stats, monthLabel, onPrev, onNext, onD
       {/* Legend */}
       <View style={styles.legend}>
         {[
-          { bg: 'rgba(34,197,94,0.22)', border: `${colors.success}80`, label: '≥80%' },
-          { bg: 'rgba(245,158,11,0.22)', border: `${colors.warning}80`, label: '40–79%' },
+          { bg: 'rgba(34,197,94,0.22)', border: `${colors.success}80`, label: '>=80%' },
+          { bg: 'rgba(245,158,11,0.22)', border: `${colors.warning}80`, label: '40-79%' },
           { bg: 'rgba(239,68,68,0.18)', border: `${colors.danger}80`, label: '<40%' },
           { bg: 'transparent', border: `${colors.accent}55`, label: 'Planned' },
         ].map((item) => (
@@ -178,13 +179,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  navArrow: {
-    fontSize: 22,
-    color: colors.accent,
-    fontWeight: '600',
-    paddingHorizontal: 6,
-  },
-  navDisabled: { color: colors.textMuted },
   monthLabel: {
     fontSize: 14,
     fontWeight: '600',

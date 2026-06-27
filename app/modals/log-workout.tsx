@@ -10,7 +10,9 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { TimePickerSheet } from '@/src/components/molecules/TimePickerSheet';
+import { ProgressBar } from '@/src/components/atoms/ProgressBar';
 import { useGymStore } from '@/src/store/gymStore';
 import { useNutritionStore } from '@/src/store/nutritionStore';
 import { useSnapshotStore } from '@/src/store/snapshotStore';
@@ -196,6 +198,10 @@ export default function LogWorkoutModal() {
 
   // Re-read todaySession from store to get live toggle state
   const liveSession = gym.getTodaySession();
+  const doneCount = liveSession?.exercises.filter((exercise) => exercise.done).length ?? 0;
+  const totalExercises = liveSession?.exercises.length ?? 0;
+  const exerciseProgress =
+    totalExercises > 0 ? Math.min(1, doneCount / totalExercises) : 0;
 
   return (
     <KeyboardAvoidingView
@@ -203,13 +209,43 @@ export default function LogWorkoutModal() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <View style={styles.headerCard}>
+          <Text style={styles.kicker}>GYM LOG</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.modalTitle}>Log workout</Text>
+            {liveSession ? (
+              <View style={styles.sessionPill}>
+                <Ionicons name="barbell-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.sessionPillText}>{pplLabel(liveSession.type)}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
 
+        {liveSession ? (
+          <View style={styles.sectionCard}>
+        <View style={styles.exerciseHeader}>
+          <View>
+            <Text style={styles.sectionLabel}>EXERCISES</Text>
+            <Text style={styles.exerciseSubLabel}>
+              {doneCount} / {totalExercises} complete
+            </Text>
+          </View>
+          <View style={styles.exerciseBadge}>
+            <Text style={styles.exerciseBadgeText}>{pplLabel(liveSession.type)}</Text>
+          </View>
+        </View>
+        <View style={styles.progressWrap}>
+          <ProgressBar
+            value={exerciseProgress}
+            max={1}
+            color={exerciseProgress >= 1 ? colors.success : colors.accent}
+            height={5}
+          />
+        </View>
         {/* Exercise Checklist with Edit/Delete */}
         {liveSession && liveSession.exercises.length > 0 && (
           <>
-            <Text style={styles.sectionLabel}>
-              EXERCISES — {pplLabel(liveSession.type).toUpperCase()}
-            </Text>
             <View style={styles.exerciseCard}>
               {liveSession.exercises.map((ex, i) => (
                 <View key={ex.name} style={[styles.exerciseRow, i > 0 && styles.exerciseBorder]}>
@@ -226,7 +262,7 @@ export default function LogWorkoutModal() {
                           placeholderTextColor={colors.textMuted}
                           maxLength={2}
                         />
-                        <Text style={styles.editX}>×</Text>
+                        <Text style={styles.editX}>x</Text>
                         <TextInput
                           style={styles.editInput}
                           value={editReps}
@@ -249,7 +285,7 @@ export default function LogWorkoutModal() {
                           style={styles.editSaveBtn}
                           onPress={() => handleSaveEdit(ex.name)}
                         >
-                          <Text style={styles.editSaveBtnText}>✓</Text>
+                          <Ionicons name="checkmark" size={15} color={colors.textPrimary} />
                         </TouchableOpacity>
                       </View>
                       {(() => { const lw = getLastWeight(ex.name); return lw ? <Text style={styles.lastWeightHint}>last session: {lw}kg</Text> : null; })()}
@@ -262,7 +298,9 @@ export default function LogWorkoutModal() {
                         activeOpacity={0.7}
                       >
                         <View style={[styles.checkbox, ex.done && styles.checkboxDone]}>
-                          {ex.done ? <Text style={styles.checkmark}>✓</Text> : null}
+                          {ex.done ? (
+                            <Ionicons name="checkmark" size={13} color={colors.textPrimary} />
+                          ) : null}
                         </View>
                         <Text style={[styles.exerciseName, ex.done && styles.exerciseNameDone]}>
                           {ex.name}
@@ -273,7 +311,7 @@ export default function LogWorkoutModal() {
                         activeOpacity={0.7}
                       >
                         <View style={styles.setsWeightCol}>
-                          <Text style={styles.exerciseSets}>{ex.sets}×{ex.reps}</Text>
+                          <Text style={styles.exerciseSets}>{ex.sets}x{ex.reps}</Text>
                           {ex.weightKg ? (
                             <Text style={styles.exerciseWeight}>{ex.weightKg}kg</Text>
                           ) : (() => { const lw = getLastWeight(ex.name); return lw ? <Text style={styles.exerciseLastWeight}>last {lw}kg</Text> : null; })()}
@@ -284,7 +322,7 @@ export default function LogWorkoutModal() {
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         activeOpacity={0.6}
                       >
-                        <Text style={styles.deleteBtn}>✕</Text>
+                        <Ionicons name="close" size={15} color={colors.danger} />
                       </TouchableOpacity>
                     </>
                   )}
@@ -349,13 +387,17 @@ export default function LogWorkoutModal() {
                 onPress={() => setShowAddForm(true)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.addExerciseBtnText}>+ Add Exercise</Text>
+                <Ionicons name="add" size={15} color={colors.accent} />
+                <Text style={styles.addExerciseBtnText}>Add Exercise</Text>
               </TouchableOpacity>
             )}
           </>
         )}
+          </View>
+        ) : null}
 
-        <Text style={styles.sectionLabel}>PROTEIN (grams)</Text>
+        <View style={styles.sectionCard}>
+        <Text style={styles.sectionLabel}>PROTEIN</Text>
         <View style={styles.inlineRow}>
           <TextInput
             style={[styles.input, styles.inputHalf]}
@@ -374,9 +416,12 @@ export default function LogWorkoutModal() {
             placeholderTextColor={colors.textMuted}
           />
         </View>
-        <Text style={styles.hint}>Logged → Target</Text>
+        <Text style={styles.hint}>Logged / Target</Text>
 
-        <Text style={styles.sectionLabel}>SLEEP (last night)</Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+        <Text style={styles.sectionLabel}>SLEEP</Text>
         <View style={styles.inlineRow}>
           <View style={styles.inputHalf}>
             <Text style={styles.inputLabel}>Bedtime</Text>
@@ -402,7 +447,10 @@ export default function LogWorkoutModal() {
           </View>
         </View>
 
-        <Text style={styles.sectionLabel}>BODY WEIGHT (kg)</Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+        <Text style={styles.sectionLabel}>BODY WEIGHT</Text>
         <TextInput
           style={styles.input}
           value={weight}
@@ -412,8 +460,10 @@ export default function LogWorkoutModal() {
           placeholderTextColor={colors.textMuted}
         />
 
+        </View>
+
         {todaySession && (
-          <>
+          <View style={styles.sectionCard}>
             <Text style={styles.sectionLabel}>WORKOUT</Text>
             <TouchableOpacity
               style={[styles.toggle, workoutDone && styles.toggleActive]}
@@ -428,7 +478,7 @@ export default function LogWorkoutModal() {
             >
               <View style={[styles.toggleDot, workoutDone && styles.toggleDotActive]} />
               <Text style={[styles.toggleText, workoutDone && styles.toggleTextActive]}>
-                {workoutDone ? 'Workout complete ✓' : 'Mark workout complete'}
+                {workoutDone ? 'Workout complete' : 'Mark workout complete'}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -447,10 +497,11 @@ export default function LogWorkoutModal() {
                 {workoutSkipped ? 'Workout skipped for today' : 'Skip workout for today'}
               </Text>
             </TouchableOpacity>
-          </>
+          </View>
         )}
 
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} activeOpacity={0.8}>
+          <Ionicons name="checkmark" size={16} color="#fff" />
           <Text style={styles.saveBtnText}>Save</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -483,16 +534,98 @@ export default function LogWorkoutModal() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   screen: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.lg, paddingBottom: spacing.xxxl },
+  content: { padding: spacing.base, paddingBottom: spacing.xxxl },
+  headerCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  kicker: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 0.8,
+    marginBottom: spacing.xs,
+  },
+  modalTitle: {
+    flex: 1,
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+    textAlign: 'left',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  sessionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: colors.cardElevated,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexShrink: 0,
+  },
+  sessionPillText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  sectionCard: {
+    backgroundColor: colors.card,
+    borderRadius: 14,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  exerciseHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  exerciseSubLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    marginTop: -4,
+  },
+  exerciseBadge: {
+    backgroundColor: `${colors.accent}18`,
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: `${colors.accent}44`,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  exerciseBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.accent,
+  },
+  progressWrap: {
+    marginBottom: spacing.sm,
+  },
 
   sectionLabel: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.textMuted,
     marginBottom: spacing.sm,
-    marginTop: spacing.xl,
+    marginTop: 0,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   inlineRow: {
     flexDirection: 'row',
@@ -505,9 +638,9 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   input: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    padding: spacing.base,
+    padding: spacing.md,
     fontSize: 15,
     color: colors.textPrimary,
     borderWidth: 1,
@@ -521,14 +654,14 @@ const styles = StyleSheet.create({
 
   // Time picker display
   timeDisplay: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.cardElevated,
     borderRadius: 10,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
-    minHeight: 78,
+    minHeight: 64,
     justifyContent: 'center',
   },
   timeDisplayText: {
@@ -546,14 +679,16 @@ const styles = StyleSheet.create({
   },
   // Exercise card & rows
   exerciseCard: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    padding: 0,
+    borderWidth: 0,
+    marginTop: spacing.xs,
   },
   exerciseRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 8,
     gap: 10,
   },
   exerciseBorder: {
@@ -579,11 +714,6 @@ const styles = StyleSheet.create({
   checkboxDone: {
     backgroundColor: colors.accent,
     borderColor: colors.accent,
-  },
-  checkmark: {
-    fontSize: 11,
-    color: '#fff',
-    fontWeight: '700',
   },
   exerciseName: {
     flex: 1,
@@ -615,12 +745,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontVariant: ['tabular-nums'],
     fontStyle: 'italic',
-  },
-  deleteBtn: {
-    fontSize: 14,
-    color: colors.danger,
-    fontWeight: '600',
-    paddingLeft: 4,
   },
 
   // Edit mode
@@ -671,19 +795,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginLeft: 4,
   },
-  editSaveBtnText: {
-    fontSize: 14,
-    color: '#fff',
-    fontWeight: '700',
-  },
 
   // Add exercise
   addExerciseBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
     borderWidth: 1,
     borderColor: colors.border,
     borderStyle: 'dashed',
     borderRadius: 10,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
     marginTop: spacing.sm,
   },
@@ -695,8 +817,10 @@ const styles = StyleSheet.create({
   addForm: {
     backgroundColor: colors.card,
     borderRadius: 14,
-    padding: 16,
+    padding: spacing.md,
     marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   addFormRow: {
     flexDirection: 'row',
@@ -745,9 +869,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: colors.card,
     borderRadius: 10,
-    padding: spacing.base,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.sm,
+    minHeight: 48,
   },
   toggleActive: {
     borderColor: colors.success,
@@ -775,7 +901,6 @@ const styles = StyleSheet.create({
   toggleSkipped: {
     borderColor: colors.warning,
     backgroundColor: 'rgba(245,158,11,0.08)',
-    marginTop: spacing.sm,
   },
   toggleDotSkipped: {
     backgroundColor: colors.warning,
@@ -785,11 +910,14 @@ const styles = StyleSheet.create({
     color: colors.warning,
   },
   saveBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xl,
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
+    marginTop: spacing.md,
   },
   saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

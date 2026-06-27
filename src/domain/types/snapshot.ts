@@ -5,6 +5,8 @@ export interface DailySnapshot {
   studyMinutes: number;
   gymCompleted: boolean;
   gymSkipped?: boolean;
+  studySkipped?: boolean;
+  proteinSkipped?: boolean;
   proteinGrams: number;
   sleepMinutes: number;
   intention?: string;

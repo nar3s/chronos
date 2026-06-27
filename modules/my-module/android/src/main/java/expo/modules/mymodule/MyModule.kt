@@ -2,6 +2,9 @@ package expo.modules.mymodule
 
 import android.content.Context
 import android.content.Intent
+import android.app.AlarmManager
+import android.net.Uri
+import android.os.Build
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
@@ -173,6 +176,59 @@ class MyModule : Module() {
         }
         result
       }
+    }
+
+    // ---- Wallpaper ----
+
+    AsyncFunction("setWallpaperNow") { uri: String, target: String ->
+      val context = appContext.reactContext ?: return@AsyncFunction false
+      WallpaperScheduler.applyWallpaper(context, uri, target)
+    }
+
+    AsyncFunction("importWallpaper") { uri: String ->
+      val context = appContext.reactContext
+      if (context == null) "" else (WallpaperScheduler.importImage(context, uri) ?: "")
+    }
+
+    Function("removeWallpaperFile") { path: String ->
+      WallpaperScheduler.removeFile(path)
+    }
+
+    Function("syncWallpaperSchedules") { json: String ->
+      val context = appContext.reactContext ?: return@Function
+      WallpaperScheduler.saveAndArm(context, json)
+    }
+
+    Function("hasExactAlarmPermission") {
+      val context = appContext.reactContext
+      if (context == null) {
+        false
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        am.canScheduleExactAlarms()
+      } else {
+        true
+      }
+    }
+
+    Function("openExactAlarmSettings") {
+      val context = appContext.reactContext
+      if (context != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+          data = Uri.parse("package:" + context.packageName)
+          addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+          context.startActivity(intent)
+        } catch (e: Exception) {
+          val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.parse("package:" + context.packageName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          }
+          context.startActivity(fallback)
+        }
+      }
+      true
     }
   }
 }

@@ -38,7 +38,7 @@ export function useStudyPlanCalendar() {
     // Mon = 0 offset
     const firstDow = (new Date(viewYear, viewMonth - 1, 1).getDay() + 6) % 7;
 
-    // date → total planned minutes
+    // date to total planned minutes
     const planMap = new Map<string, number>();
     planItems
       .filter((i) => i.date.startsWith(yearMonth))
@@ -46,7 +46,7 @@ export function useStudyPlanCalendar() {
         planMap.set(i.date, (planMap.get(i.date) ?? 0) + i.plannedMinutes);
       });
 
-    // date → total studied minutes
+    // date to total studied minutes
     const actualMap = new Map<string, number>();
     sessions
       .filter((s) => s.date.startsWith(yearMonth))

@@ -5,11 +5,15 @@ import { calculateStreak, getToday } from '@/src/utils/dates';
 import type { Habit, HabitLog } from '@/src/domain/types/habit';
 
 const DEFAULT_HABITS: Omit<Habit, 'id' | 'createdAt'>[] = [
-  { label: 'Cold Shower', emoji: '🧊', order: 0 },
-  { label: 'Meditate', emoji: '🧘', order: 1 },
-  { label: 'Read', emoji: '📖', order: 2 },
-  { label: 'No junk food', emoji: '🥗', order: 3 },
+  { label: 'Cold Shower', emoji: 'checkmark-circle-outline', order: 0 },
+  { label: 'Meditate', emoji: 'checkmark-circle-outline', order: 1 },
+  { label: 'Read', emoji: 'book-outline', order: 2 },
+  { label: 'No junk food', emoji: 'restaurant-outline', order: 3 },
 ];
+
+function createHabitId(): string {
+  return `habit-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
 
 interface HabitData {
   habits: Habit[];
@@ -38,7 +42,7 @@ export const useHabitStore = create<HabitState>()(
           habits: [
             ...s.habits,
             {
-              id: Date.now().toString(),
+              id: createHabitId(),
               label: h.label,
               emoji: h.emoji,
               order: s.habits.length,

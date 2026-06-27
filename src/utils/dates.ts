@@ -53,8 +53,27 @@ export function calculateStreak(dates: string[]): number {
     } else if (date < cursor) {
       break;
     }
+    // Future-dated entries are ignored so timezone drift does not extend today's streak.
   }
   return streak;
+}
+
+export function calculateBestStreak(dates: string[]): number {
+  if (dates.length === 0) return 0;
+  const unique = [...new Set(dates)].sort((a, b) => a.localeCompare(b));
+  let best = 1;
+  let run = 1;
+  for (let i = 1; i < unique.length; i++) {
+    const prev = new Date(unique[i - 1] + 'T00:00:00');
+    prev.setDate(prev.getDate() + 1);
+    if (localDateStr(prev) === unique[i]) {
+      run++;
+      if (run > best) best = run;
+    } else {
+      run = 1;
+    }
+  }
+  return best;
 }
 
 export function formatDisplayDate(isoDate: string): string {

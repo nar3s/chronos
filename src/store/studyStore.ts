@@ -3,7 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { StudySession, StudyGoal, ExamCheckpoint } from '@/src/domain/types/study';
 import { getToday, getWeeksBack, calculateStreak } from '@/src/utils/dates';
 import { zustandStorage } from '@/src/services/storage';
-import { cancelMorningMissedAlert } from '@/src/services/notifications';
+import { cancelTodayMorningMissedAlert } from '@/src/services/notifications';
 import { useSnapshotStore } from '@/src/store/snapshotStore';
 
 interface StudyData {
@@ -51,7 +51,7 @@ export const useStudyStore = create<StudyState>()(
       addSession: (session) => {
         set((s) => ({ sessions: [...s.sessions, session] }));
         if (session.date === getToday()) {
-          cancelMorningMissedAlert().catch(() => {});
+          cancelTodayMorningMissedAlert().catch(() => {});
         }
       },
 

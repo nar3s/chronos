@@ -3,12 +3,15 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useBookmarkStore } from '@/src/store/bookmarkStore';
+import { useDiaryStore } from '@/src/store/diaryStore';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
+import { JournalHeroCard } from '@/src/components/organisms/journal/JournalHeroCard';
 import { DiaryCalendar } from '@/src/components/organisms/journal/DiaryCalendar';
 import { DayEntryCard } from '@/src/components/organisms/journal/DayEntryCard';
 import { DoneTasksList } from '@/src/components/organisms/journal/DoneTasksList';
 import { DayBookmarksSheet } from '@/src/components/organisms/journal/DayBookmarksSheet';
+import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { getToday } from '@/src/utils/dates';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -18,10 +21,14 @@ export function JournalScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
   const [showSheet, setShowSheet] = useState(false);
 
-  const buttonLabel = selectedDate === today ? '+ Write Today' : '+ Write Entry';
-
-  const getBookmarksByDate = useBookmarkStore((s) => s.getBookmarksByDate);
-  const dayBookmarks = getBookmarksByDate(selectedDate);
+  const entries = useDiaryStore((s) => s.entries);
+  const allTasks = useDiaryStore((s) => s.tasks);
+  const removeEntry = useDiaryStore((s) => s.removeEntry);
+  const removeTask = useDiaryStore((s) => s.removeTask);
+  const bookmarks = useBookmarkStore((s) => s.bookmarks);
+  const dayEntry = entries.find((entry) => entry.date === selectedDate) ?? null;
+  const dayTasks = allTasks.filter((task) => task.date === selectedDate);
+  const dayBookmarks = bookmarks.filter((bookmark) => bookmark.date === selectedDate);
   const isBookmarked = dayBookmarks.length > 0;
 
   function handleStarPress() {
@@ -36,150 +43,148 @@ export function JournalScreen() {
 
   return (
     <ScreenTemplate>
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.title}>Journal</Text>
-          <TouchableOpacity onPress={() => router.push('/journal/bookmarks' as any)}>
-            <Text style={styles.bookmarksLink}>Bookmarks →</Text>
-          </TouchableOpacity>
-        </View>
+      <JournalHeroCard
+        selectedDate={selectedDate}
+        entry={dayEntry}
+        taskCount={dayTasks.length}
+        isBookmarked={isBookmarked}
+        onStarPress={handleStarPress}
+      />
 
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.starBtn}
-            onPress={handleStarPress}
-            activeOpacity={0.7}
-          >
-            <Ionicons 
-              name={isBookmarked ? "star" : "star-outline"} 
-              size={22} 
-              color={isBookmarked ? colors.warning : colors.textMuted} 
-            />
-          </TouchableOpacity>
+      <DiaryCalendar
+        selectedDate={selectedDate}
+        entries={entries}
+        tasks={allTasks}
+        bookmarks={bookmarks}
+        onSelectDate={setSelectedDate}
+      />
 
-          <TouchableOpacity
-            style={styles.writeBtn}
-            onPress={() => router.push(`/modals/log-diary?date=${selectedDate}` as any)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.writeBtnText}>{buttonLabel}</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      <DayEntryCard
+        date={selectedDate}
+        entry={dayEntry}
+        onDelete={removeEntry}
+      />
 
-      <DiaryCalendar selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-
-      <DayEntryCard date={selectedDate} />
-
-      <DoneTasksList date={selectedDate} />
+      <DoneTasksList tasks={dayTasks} onDelete={removeTask} />
 
       {dayBookmarks.length > 0 && (
         <View style={styles.bookmarksSection}>
-          <Text style={styles.sectionTitle}>Bookmarks</Text>
+          <SectionHeader title="Bookmarks" />
           {dayBookmarks.map((b, i) => (
-            <Animated.View key={b.id} entering={FadeInDown.duration(300).delay(i * 50)}>
+            <Animated.View
+              key={b.id}
+              entering={FadeInDown.duration(300).delay(i * 50)}
+            >
               <TouchableOpacity
                 style={styles.bookmarkCard}
                 onPress={() => router.push(`/modals/add-bookmark?id=${b.id}` as any)}
                 activeOpacity={0.7}
               >
-                <View style={styles.bookmarkHeader}>
-                  <Text style={styles.bookmarkLabel}>{b.label}</Text>
-                  {b.notifyAt && <Ionicons name="notifications" size={14} color={colors.accent} />}
+                <View style={styles.bookmarkRail} />
+                <View style={styles.bookmarkIcon}>
+                  <Ionicons name="star-outline" size={16} color={colors.warning} />
                 </View>
-                {b.note ? <Text style={styles.bookmarkNote} numberOfLines={2}>{b.note}</Text> : null}
+                <View style={styles.bookmarkBody}>
+                  <View style={styles.bookmarkHeader}>
+                    <Text style={styles.bookmarkLabel} numberOfLines={1}>{b.label}</Text>
+                    {b.notifyAt && (
+                      <View style={styles.notifyPill}>
+                        <Ionicons
+                          name="notifications-outline"
+                          size={12}
+                          color={colors.accent}
+                        />
+                      </View>
+                    )}
+                  </View>
+                  {b.note ? (
+                    <Text style={styles.bookmarkNote} numberOfLines={2}>
+                      {b.note}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </TouchableOpacity>
             </Animated.View>
           ))}
         </View>
       )}
 
-      <DayBookmarksSheet 
-        visible={showSheet} 
-        date={selectedDate} 
-        bookmarks={dayBookmarks} 
-        onClose={() => setShowSheet(false)} 
+      <DayBookmarksSheet
+        visible={showSheet}
+        date={selectedDate}
+        bookmarks={dayBookmarks}
+        onClose={() => setShowSheet(false)}
       />
     </ScreenTemplate>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: spacing.sm,
-    marginBottom: spacing.base,
-  },
-  headerLeft: {
-    gap: 4,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  bookmarksLink: {
-    fontSize: 13,
-    color: colors.accent,
-    fontWeight: '600',
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  starBtn: {
-    padding: 4,
-  },
-  writeBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 8,
-  },
-  writeBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#fff',
-  },
   bookmarksSection: {
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
     marginBottom: spacing.md,
   },
   bookmarkCard: {
+    position: 'relative',
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: spacing.md,
+    paddingLeft: spacing.md + 5,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bookmarkRail: {
+    position: 'absolute',
+    left: 0,
+    top: spacing.md,
+    bottom: spacing.md,
+    width: 3,
+    borderRadius: 99,
+    backgroundColor: colors.warning,
+  },
+  bookmarkIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.warning}18`,
+    borderWidth: 1,
+    borderColor: `${colors.warning}33`,
+  },
+  bookmarkBody: {
+    flex: 1,
   },
   bookmarkHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    gap: 8,
   },
   bookmarkLabel: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 14,
     fontWeight: '700',
     color: colors.textPrimary,
+    letterSpacing: -0.2,
+  },
+  notifyPill: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.accent}14`,
+    borderWidth: 1,
+    borderColor: `${colors.accent}33`,
   },
   bookmarkNote: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
-    lineHeight: 18,
+    lineHeight: 17,
     marginTop: 4,
   },
 });

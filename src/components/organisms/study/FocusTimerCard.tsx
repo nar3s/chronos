@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -8,41 +9,82 @@ import { spacing } from '@/src/theme/spacing';
 const DURATION_OPTIONS = [25, 45, 60];
 type Phase = 'idle' | 'running' | 'paused' | 'done';
 
+const RING_SIZE = 76;
+const STROKE = 6;
+
 function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-function TimerRing({ secondsLeft, totalSeconds }: { secondsLeft: number; totalSeconds: number }) {
-  const size = 120;
-  const strokeWidth = 8;
-  const r = (size - strokeWidth) / 2;
+function TimerRing({
+  secondsLeft,
+  totalSeconds,
+  phase,
+}: {
+  secondsLeft: number;
+  totalSeconds: number;
+  phase: Phase;
+}) {
+  const r = (RING_SIZE - STROKE) / 2;
   const circumference = 2 * Math.PI * r;
   const progress = totalSeconds > 0 ? (totalSeconds - secondsLeft) / totalSeconds : 0;
   const offset = circumference * (1 - progress);
-  const cx = size / 2;
-  const cy = size / 2;
+  const cx = RING_SIZE / 2;
+  const cy = RING_SIZE / 2;
   const mins = Math.floor(secondsLeft / 60);
   const secs = secondsLeft % 60;
+  const ringColor = phase === 'done' ? colors.success : colors.accent;
 
   return (
-    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
-        <Circle cx={cx} cy={cy} r={r} fill="none" stroke="#2A2A2A" strokeWidth={strokeWidth} />
+    <View style={ringStyles.wrapper}>
+      <Svg width={RING_SIZE} height={RING_SIZE} style={StyleSheet.absoluteFill}>
         <Circle
-          cx={cx} cy={cy} r={r}
+          cx={cx}
+          cy={cy}
+          r={r}
           fill="none"
-          stroke={colors.accent}
-          strokeWidth={strokeWidth}
+          stroke="#2A2A2A"
+          strokeWidth={STROKE}
+        />
+        <Circle
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke={ringColor}
+          strokeWidth={STROKE}
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           transform={`rotate(-90 ${cx} ${cy})`}
         />
       </Svg>
-      <Text style={styles.timerText}>{pad(mins)}:{pad(secs)}</Text>
+      {phase === 'done' ? (
+        <Ionicons name="checkmark" size={26} color={colors.success} />
+      ) : (
+        <Text style={ringStyles.text}>
+          {pad(mins)}:{pad(secs)}
+        </Text>
+      )}
     </View>
   );
 }
+
+const ringStyles = StyleSheet.create({
+  wrapper: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  text: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -0.5,
+  },
+});
 
 export function FocusTimerCard() {
   const [phase, setPhase] = useState<Phase>('idle');
@@ -52,24 +94,28 @@ export function FocusTimerCard() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
   }, []);
+
+  function tick() {
+    setSecondsLeft((prev) => {
+      if (prev <= 1) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        setPhase('done');
+        return 0;
+      }
+      return prev - 1;
+    });
+  }
 
   function startTimer() {
     const total = selectedDuration * 60;
     setTotalSeconds(total);
     setSecondsLeft(total);
     setPhase('running');
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          setPhase('done');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    intervalRef.current = setInterval(tick, 1000);
   }
 
   function pauseTimer() {
@@ -79,16 +125,7 @@ export function FocusTimerCard() {
 
   function resumeTimer() {
     setPhase('running');
-    intervalRef.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          setPhase('done');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    intervalRef.current = setInterval(tick, 1000);
   }
 
   function resetTimer() {
@@ -110,82 +147,130 @@ export function FocusTimerCard() {
     router.push(`/modals/log-session?prefillMinutes=${selectedDuration}` as any);
   }
 
+  const isIdle = phase === 'idle';
+  const isRunning = phase === 'running';
+  const isPaused = phase === 'paused';
+  const isDone = phase === 'done';
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
-        <Text style={styles.title}>Focus Timer</Text>
-        {phase === 'running' && (
-          <View style={styles.runningBadge}>
-            <Text style={styles.runningText}>● RUNNING</Text>
+        <Text style={styles.label}>FOCUS TIMER</Text>
+        {isRunning ? (
+          <View style={styles.statusBadge}>
+            <View style={styles.statusDot} />
+            <Text style={styles.statusText}>Running</Text>
           </View>
-        )}
+        ) : isPaused ? (
+          <View style={[styles.statusBadge, styles.statusBadgePaused]}>
+            <Text style={[styles.statusText, styles.statusTextPaused]}>
+              Paused
+            </Text>
+          </View>
+        ) : isDone ? (
+          <View style={[styles.statusBadge, styles.statusBadgeDone]}>
+            <Text style={[styles.statusText, styles.statusTextDone]}>
+              Complete
+            </Text>
+          </View>
+        ) : null}
       </View>
 
-      {phase === 'done' ? (
-        <View style={styles.doneSection}>
-          <Text style={styles.doneEmoji}>✓</Text>
-          <Text style={styles.doneTitle}>Session complete — {selectedDuration} min</Text>
-          <View style={styles.doneButtons}>
-            <TouchableOpacity style={styles.logBtn} onPress={handleLog} activeOpacity={0.8}>
-              <Text style={styles.logBtnText}>Log this session</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.dismissBtn} onPress={resetTimer} activeOpacity={0.8}>
-              <Text style={styles.dismissBtnText}>Dismiss</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <>
-          <View style={styles.ringWrapper}>
-            <TimerRing secondsLeft={secondsLeft} totalSeconds={totalSeconds} />
-          </View>
+      <View style={styles.body}>
+        <TimerRing
+          secondsLeft={secondsLeft}
+          totalSeconds={totalSeconds}
+          phase={phase}
+        />
 
-          <View style={styles.controls}>
-            {phase === 'idle' && (
-              <TouchableOpacity style={styles.primaryBtn} onPress={startTimer} activeOpacity={0.8}>
+        <View style={styles.controlsCol}>
+          {isIdle ? (
+            <>
+              <View style={styles.durationRow}>
+                {DURATION_OPTIONS.map((d) => (
+                  <TouchableOpacity
+                    key={d}
+                    style={[
+                      styles.durationChip,
+                      selectedDuration === d && styles.durationChipActive,
+                    ]}
+                    onPress={() => handleDurationSelect(d)}
+                    activeOpacity={0.75}
+                  >
+                    <Text
+                      style={[
+                        styles.durationText,
+                        selectedDuration === d && styles.durationTextActive,
+                      ]}
+                    >
+                      {d}m
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={startTimer}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="play" size={14} color="#fff" />
                 <Text style={styles.primaryBtnText}>Start</Text>
               </TouchableOpacity>
-            )}
-            {phase === 'running' && (
-              <>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={pauseTimer} activeOpacity={0.8}>
-                  <Text style={styles.secondaryBtnText}>Pause</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.ghostBtn} onPress={resetTimer} activeOpacity={0.8}>
-                  <Text style={styles.ghostBtnText}>Reset</Text>
-                </TouchableOpacity>
-              </>
-            )}
-            {phase === 'paused' && (
-              <>
-                <TouchableOpacity style={styles.primaryBtn} onPress={resumeTimer} activeOpacity={0.8}>
-                  <Text style={styles.primaryBtnText}>Resume</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.ghostBtn} onPress={resetTimer} activeOpacity={0.8}>
-                  <Text style={styles.ghostBtnText}>Reset</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-
-          {phase === 'idle' && (
-            <View style={styles.durationRow}>
-              {DURATION_OPTIONS.map((d) => (
+            </>
+          ) : isDone ? (
+            <>
+              <Text style={styles.doneText}>
+                {selectedDuration} min focused
+              </Text>
+              <View style={styles.btnRow}>
                 <TouchableOpacity
-                  key={d}
-                  style={[styles.durationChip, selectedDuration === d && styles.durationChipActive]}
-                  onPress={() => handleDurationSelect(d)}
+                  style={styles.primaryBtnSmall}
+                  onPress={handleLog}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.primaryBtnText}>Log</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.ghostBtnSmall}
+                  onPress={resetTimer}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.durationText, selectedDuration === d && styles.durationTextActive]}>
-                    {d}m
-                  </Text>
+                  <Text style={styles.ghostBtnText}>Dismiss</Text>
                 </TouchableOpacity>
-              ))}
+              </View>
+            </>
+          ) : (
+            <View style={styles.btnRow}>
+              <TouchableOpacity
+                style={styles.primaryBtnSmall}
+                onPress={isRunning ? pauseTimer : resumeTimer}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name={isRunning ? 'pause' : 'play'}
+                  size={14}
+                  color="#fff"
+                />
+                <Text style={styles.primaryBtnText}>
+                  {isRunning ? 'Pause' : 'Resume'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ghostBtnSmall}
+                onPress={resetTimer}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name="refresh"
+                  size={13}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.ghostBtnText}>Reset</Text>
+              </TouchableOpacity>
             </View>
           )}
-        </>
-      )}
+        </View>
+      </View>
     </View>
   );
 }
@@ -194,123 +279,141 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: spacing.base,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.base,
     marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
   },
   headerRow: {
-    width: '100%',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.base,
+    marginBottom: spacing.md,
+    minHeight: 22,
   },
-  title: {
-    fontSize: 15,
+  label: {
+    fontSize: 11,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.textMuted,
+    letterSpacing: 0.8,
   },
-  runningBadge: {
-    backgroundColor: `${colors.success}20`,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: `${colors.success}1A`,
     borderRadius: 8,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  runningText: {
+  statusBadgePaused: {
+    backgroundColor: `${colors.warning}1A`,
+  },
+  statusBadgeDone: {
+    backgroundColor: `${colors.success}1A`,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.success,
+  },
+  statusText: {
     fontSize: 11,
     fontWeight: '700',
     color: colors.success,
-    letterSpacing: 0.5,
+    letterSpacing: 0.2,
   },
-  ringWrapper: {
-    marginVertical: spacing.base,
+  statusTextPaused: {
+    color: colors.warning,
   },
-  timerText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    fontVariant: ['tabular-nums'],
+  statusTextDone: {
+    color: colors.success,
   },
-  controls: {
+  body: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.base,
+  },
+  controlsCol: {
+    flex: 1,
     gap: 10,
-    marginBottom: spacing.sm,
   },
-  primaryBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 32,
-  },
-  primaryBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  secondaryBtn: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  secondaryBtnText: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  ghostBtn: {
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  ghostBtnText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   durationRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 4,
+    gap: 6,
   },
   durationChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
+    flex: 1,
+    paddingVertical: 7,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cardElevated,
+    alignItems: 'center',
   },
   durationChipActive: {
-    backgroundColor: colors.accent,
+    backgroundColor: `${colors.accent}24`,
     borderColor: colors.accent,
   },
-  durationText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  durationTextActive: { color: '#fff' },
-  doneSection: {
-    alignItems: 'center',
-    paddingVertical: spacing.base,
+  durationText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
-  doneEmoji: {
-    fontSize: 36,
-    marginBottom: 8,
-    color: colors.success,
+  durationTextActive: {
+    color: colors.accent,
   },
-  doneTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: spacing.base,
-  },
-  doneButtons: {
+  primaryBtn: {
     flexDirection: 'row',
-    gap: 10,
-  },
-  logBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
     backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 20,
   },
-  logBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
-  dismissBtn: {
+  primaryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.1,
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  primaryBtnSmall: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 10,
-    paddingHorizontal: 16,
+  },
+  ghostBtnSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    backgroundColor: colors.cardElevated,
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  dismissBtnText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  ghostBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  doneText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
 });

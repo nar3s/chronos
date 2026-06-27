@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
+import { ScreenHeader } from '@/src/components/molecules/ScreenHeader';
 import { useBookmarkStore } from '@/src/store/bookmarkStore';
 import { getToday } from '@/src/utils/dates';
 import { colors } from '@/src/theme/colors';
@@ -89,20 +90,19 @@ export function BookmarksScreen() {
 
   return (
     <ScreenTemplate>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={24} color={colors.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Bookmarks</Text>
-        <TouchableOpacity
-          style={styles.addBtn}
-          onPress={() => router.push('/modals/add-bookmark' as any)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="add" size={16} color="#fff" />
-          <Text style={styles.addBtnText}>New</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Bookmarks"
+        right={
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => router.push('/modals/add-bookmark' as any)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.addBtnText}>New</Text>
+          </TouchableOpacity>
+        }
+      />
 
       <Text style={styles.sectionTitle}>Upcoming</Text>
       <View style={styles.section}>

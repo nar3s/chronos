@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
 
@@ -19,10 +18,10 @@ export function ScreenTemplate({ children }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeIn.duration(350)}>
+        <View>
           {children}
           <View style={styles.bottomPad} />
-        </Animated.View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -38,9 +37,9 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
   },
   bottomPad: {
-    height: spacing.xl,
+    height: spacing.xxl,
   },
 });

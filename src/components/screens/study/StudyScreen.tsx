@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { ScreenTemplate } from '@/src/components/templates/ScreenTemplate';
-import { DailyStudyBanner } from '@/src/components/organisms/study/DailyStudyBanner';
+import { StudyHeroCard } from '@/src/components/organisms/study/StudyHeroCard';
 import { FocusTimerCard } from '@/src/components/organisms/study/FocusTimerCard';
-import { StudyStreakCard } from '@/src/components/organisms/study/StudyStreakCard';
-import { ExamCountdownBanner } from '@/src/components/organisms/study/ExamCountdownBanner';
 import { TodayPlanCard } from '@/src/components/organisms/study/TodayPlanCard';
 import { TodaySessionsList } from '@/src/components/organisms/study/TodaySessionsList';
 import { UpcomingPlanList } from '@/src/components/organisms/study/UpcomingPlanList';
@@ -19,12 +19,20 @@ import { StudyPlanDayModal } from '@/src/components/organisms/study/StudyPlanDay
 import { SectionHeader } from '@/src/components/molecules/SectionHeader';
 import { useStudy } from '@/src/hooks/useStudy';
 import { useStudyPlanStore } from '@/src/store/studyPlanStore';
+import { useSnapshotStore } from '@/src/store/snapshotStore';
+import { useStudyStore } from '@/src/store/studyStore';
 import { useStudyPlanCalendar } from '@/src/hooks/useStudyPlanCalendar';
 import { colors } from '@/src/theme/colors';
+import { getToday } from '@/src/utils/dates';
 
 export function StudyScreen() {
   const study = useStudy();
   const plan = useStudyPlanStore();
+  const studySessions = useStudyStore((s) => s.sessions);
+  const todaySnapshot = useSnapshotStore((s) =>
+    s.snapshots.find((snapshot) => snapshot.date === getToday())
+  );
+  const updateSnapshot = useSnapshotStore((s) => s.updateSnapshot);
   const todayPlan = plan.getTodayPlan();
   const upcoming = plan.getUpcoming(7);
   const overdue = plan.getOverduePlan();
@@ -33,110 +41,124 @@ export function StudyScreen() {
 
   return (
     <ScreenTemplate>
-      <View style={styles.headerPad}>
-        <Text style={styles.heading}>Study Tracker</Text>
-      </View>
-
-      <DailyStudyBanner
-        totalMinutes={study.todayMinutes}
-        sessionCount={study.todaySessionCount}
-      />
-
-      <FocusTimerCard />
-
-      <StudyStreakCard streak={study.studyStreak} />
-
-      {study.checkpoint && study.daysUntilExam !== null && (
-        <ExamCountdownBanner
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 0)}>
+        <StudyHeroCard
+          todayMinutes={study.todayMinutes}
+          sessionCount={study.todaySessionCount}
+          streak={study.studyStreak}
           checkpoint={study.checkpoint}
-          daysLeft={study.daysUntilExam}
+          daysUntilExam={study.daysUntilExam}
+          isSkipped={!!todaySnapshot?.studySkipped}
+          onToggleSkip={() =>
+            updateSnapshot(getToday(), {
+              studySkipped: !todaySnapshot?.studySkipped,
+            })
+          }
         />
-      )}
+      </Animated.View>
 
-      {/* Plan: today checklist → upcoming → month calendar */}
-      <TodayPlanCard
-        items={todayPlan}
-        onToggle={plan.toggleComplete}
-        onDelete={plan.removeItem}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 1)}>
+        <FocusTimerCard />
+      </Animated.View>
 
-      <TodaySessionsList
-        sessions={study.todaySessions}
-        onDelete={study.removeSession}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 2)}>
+        <TodayPlanCard
+          items={todayPlan}
+          onToggle={plan.toggleComplete}
+          onDelete={plan.removeItem}
+        />
+      </Animated.View>
 
-      <OverduePlanList items={overdue} />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 3)}>
+        <TodaySessionsList
+          sessions={study.todaySessions}
+          onDelete={study.removeSession}
+        />
+      </Animated.View>
 
-      <UpcomingPlanList
-        items={upcoming}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 4)}>
+        <OverduePlanList items={overdue} />
+      </Animated.View>
 
-      <SectionHeader title="Plan Calendar" />
-      <StudyPlanCalendar
-        days={planCalendar.days}
-        stats={planCalendar.stats}
-        monthLabel={planCalendar.monthLabel}
-        onPrev={planCalendar.goPrev}
-        onNext={planCalendar.goNext}
-        onDayPress={setSelectedDay}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 5)}>
+        <UpcomingPlanList items={upcoming} />
+      </Animated.View>
 
-      <SectionHeader title="This Week" />
-      <WeeklySummaryCard
-        totalMinutes={study.weeklyStats.totalMinutes}
-        sessionCount={study.weeklyStats.sessionCount}
-        daysActive={study.weeklyStats.daysActive}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 6)}>
+        <SectionHeader title="Plan Calendar" />
+        <StudyPlanCalendar
+          days={planCalendar.days}
+          stats={planCalendar.stats}
+          monthLabel={planCalendar.monthLabel}
+          onPrev={planCalendar.goPrev}
+          onNext={planCalendar.goNext}
+          onDayPress={setSelectedDay}
+        />
+      </Animated.View>
 
-      <SectionHeader title="4-Week Heatmap" />
-      <StudyHeatmap heatmap={study.heatmap} />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 7)}>
+        <SectionHeader title="This Week" />
+        <WeeklySummaryCard
+          totalMinutes={study.weeklyStats.totalMinutes}
+          sessionCount={study.weeklyStats.sessionCount}
+          daysActive={study.weeklyStats.daysActive}
+        />
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 8)}>
+        <SectionHeader title="4-Week Heatmap" />
+        <StudyHeatmap heatmap={study.heatmap} />
+      </Animated.View>
 
       {study.topicsWithProgress.length > 0 && (
-        <>
+        <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 9)}>
           <SectionHeader title="Topic Progress" />
           <TopicProgressList topics={study.topicsWithProgress} />
-        </>
+        </Animated.View>
       )}
 
-      <RecentStudyHistory
-        sessions={study.recentSessions}
-        onDelete={study.removeSession}
-      />
+      <Animated.View entering={FadeInDown.duration(400).delay(STAGGER * 10)}>
+        <RecentStudyHistory
+          sessions={study.recentSessions}
+          onDelete={study.removeSession}
+        />
+      </Animated.View>
 
-      <View style={styles.btnRow}>
+      <Animated.View
+        entering={FadeInDown.duration(400).delay(STAGGER * 11)}
+        style={styles.btnRow}
+      >
         <TouchableOpacity
           style={styles.logBtn}
           onPress={() => router.push('/modals/log-session')}
           activeOpacity={0.8}
         >
-          <Text style={styles.logBtnText}>+ Log Session</Text>
+          <Ionicons name="add" size={16} color="#fff" />
+          <Text style={styles.logBtnText}>Log session</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.planBtn}
           onPress={() => router.push('/modals/add-study-plan')}
           activeOpacity={0.8}
         >
-          <Text style={styles.planBtnText}>📋 Plan</Text>
+          <Ionicons name="list-outline" size={16} color={colors.textPrimary} />
+          <Text style={styles.planBtnText}>Plan</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
-      <StudyPlanDayModal date={selectedDay} onClose={() => setSelectedDay(null)} />
+      <StudyPlanDayModal
+        date={selectedDay}
+        planItems={plan.items}
+        sessions={studySessions}
+        onClose={() => setSelectedDay(null)}
+      />
     </ScreenTemplate>
   );
 }
 
+const STAGGER = 70;
+
 const styles = StyleSheet.create({
-  headerPad: {
-    paddingTop: 8,
-    marginBottom: 4,
-  },
-  heading: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-    marginBottom: 16,
-  },
   btnRow: {
     flexDirection: 'row',
     gap: 10,
@@ -145,10 +167,13 @@ const styles = StyleSheet.create({
   },
   logBtn: {
     flex: 1,
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 13,
   },
   logBtnText: {
     fontSize: 14,
@@ -156,13 +181,16 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   planBtn: {
-    backgroundColor: colors.cardElevated,
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.cardElevated,
+    borderRadius: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 22,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: colors.border,
   },
   planBtnText: {
     fontSize: 14,
