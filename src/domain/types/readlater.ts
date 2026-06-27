@@ -4,7 +4,8 @@ export interface ReadLaterItem {
   id: string;
   url: string;
   title: string;
-  note?: string;
+  note?: string;            // user's own note
+  description?: string;     // auto-fetched page summary (og:description / author)
   type: ReadLaterType;
   date: string;             // YYYY-MM-DD the item was saved / targeted for
   isRead: boolean;

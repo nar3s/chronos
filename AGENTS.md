@@ -19,6 +19,9 @@ Load the relevant `.context/` file before working in any domain.
 | `.context/gym.md` | gymStore, nutritionStore, PPL, organisms, modals |
 | `.context/journal.md` | diaryStore, bookmarkStore, diary + bookmark modals |
 | `.context/more.md` | Distraction blocker, native module, settings |
+| `.context/habits.md` | habitStore, habit hooks, habit stats |
+| `.context/wallpaper.md` | Android wallpaper native module, schedules |
+| `.context/readlater.md` | readlaterStore, Read Later screen, reminders |
 
 ---
 
@@ -59,6 +62,9 @@ See the full auth-safe architecture rule in `.learnings/PLANS.md` (Plan A). Shor
 | Gym | `gym` | ✅ Live |
 | Journal | `journal` | ✅ Live |
 | More | `more` | ✅ Live |
+| Habits | `more/habits` | ✅ Live |
+| Wallpaper | `more/wallpaper` | ✅ Live |
+| Read Later | `more/read-later` | ✅ Live |
 | Job Hunt | — | ❌ Out of scope |
 | Construction | — | ❌ Out of scope |
 
@@ -69,8 +75,8 @@ See the full auth-safe architecture rule in `.learnings/PLANS.md` (Plan A). Shor
 ```
 app/                     — Expo Router routes
   (tabs)/                — 5 tabs: index, study, gym, journal, more
-  modals/                — all modals (log-session, log-workout, log-diary, add-study-plan, add-bookmark)
-  more/                  — stack screens under More (blocker)
+  modals/                — all modals (log-session, log-workout, log-diary, add-study-plan, add-bookmark, add-wallpaper-schedule, add-read-later)
+  more/                  — stack screens under More (blocker, habits, insights, schedule, screen-time, personalize, wallpaper, read-later)
   journal/               — stack screens under Journal (bookmarks)
   settings.tsx
   _layout.tsx            — root Stack + modal registration
@@ -79,15 +85,15 @@ src/
   components/
     atoms/
     molecules/
-    organisms/           — subdirs: dashboard/ study/ gym/ journal/
+    organisms/           — subdirs: dashboard/ study/ gym/ journal/ habits/ wallpaper/ readlater/
     templates/
-    screens/             — subdirs: dashboard/ study/ gym/ journal/ more/
+    screens/             — subdirs: dashboard/ study/ gym/ journal/ more/ habits/ wallpaper/ readlater/
   store/                 — one file per domain
   domain/
     types/               — TypeScript interfaces per domain
     constants/           — PPL schedule, topics, exercise templates
   hooks/                 — one hook per domain
-  services/              — storage.ts, notifications.ts, aiCompanion.ts
+  services/              — storage.ts, notifications.ts, aiCompanion.ts, sync*, wallpaper.ts
   theme/                 — colors.ts, spacing.ts, typography.ts
   utils/                 — dates.ts, formatters.ts, ppl.ts
 

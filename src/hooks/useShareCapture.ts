@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import { useShareIntent } from 'expo-share-intent';
 import { useReadLaterStore } from '@/src/store/readlaterStore';
+import { enrichReadLaterMeta } from '@/src/services/linkMeta';
 import { getToday } from '@/src/utils/dates';
 import type { ReadLaterType } from '@/src/domain/types/readlater';
 
@@ -59,9 +60,10 @@ export function useShareCapture(): void {
 
     const url = normalizeUrl(extractUrl(raw));
     const title = shareIntent.meta?.title?.trim() || hostOf(url);
+    const id = Date.now().toString();
 
     addItem({
-      id: Date.now().toString(),
+      id,
       url,
       title,
       type: detectType(url),
@@ -69,6 +71,9 @@ export function useShareCapture(): void {
       isRead: false,
       createdAt: new Date().toISOString(),
     });
+
+    // Background best-effort title/description fetch (no third-party service).
+    void enrichReadLaterMeta(id, url);
 
     resetShareIntent();
     router.push('/more/read-later' as any);

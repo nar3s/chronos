@@ -73,6 +73,12 @@ export function ReadLaterListItem({ item, onToggleRead, onOpen, onEdit }: Props)
           {host}
         </Text>
 
+        {item.description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {item.description}
+          </Text>
+        ) : null}
+
         {item.note ? (
           <Text style={styles.note} numberOfLines={1}>
             {item.note}
@@ -170,10 +176,16 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontWeight: '500',
   },
-  note: {
+  description: {
     fontSize: 12,
     color: colors.textSecondary,
     lineHeight: 17,
+  },
+  note: {
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 17,
+    fontStyle: 'italic',
   },
   editBtn: {
     width: 28,

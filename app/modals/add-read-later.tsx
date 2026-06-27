@@ -19,6 +19,7 @@ import {
   ensureNotificationPermission,
   scheduleReadLaterNotification,
 } from '@/src/services/notifications';
+import { enrichReadLaterMeta } from '@/src/services/linkMeta';
 import { getToday } from '@/src/utils/dates';
 import { colors } from '@/src/theme/colors';
 import { spacing } from '@/src/theme/spacing';
@@ -190,6 +191,8 @@ export default function AddReadLaterModal() {
       updateItem(existing.id, item);
     } else {
       addItem(item);
+      // Background best-effort title/description fetch (no third-party service).
+      void enrichReadLaterMeta(itemId, normalized);
     }
 
     router.back();
